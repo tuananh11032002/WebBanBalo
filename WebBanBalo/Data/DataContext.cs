@@ -15,8 +15,11 @@ namespace WebBanBalo.Data
         public DbSet<Product>  Product { get; set; }
         public DbSet<ProductCategory> ProductCategory { get; set; }
         public DbSet<Users> Users { get; set; }
+        public DbSet<ColorProduct> ColorProducts { get; set; }
+        public DbSet<Color> Color { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+             
             modelBuilder.Entity<ProductCategory>()
               .HasKey(p => new { p.CategoryId, p.ProductId });
             modelBuilder.Entity<ProductCategory>()
@@ -42,6 +45,18 @@ namespace WebBanBalo.Data
 
             modelBuilder.Entity<Order>().Property(p => p.Done).HasDefaultValue(false);
             modelBuilder.Entity<Order>().Property(p => p.TotalAmount).HasDefaultValue(0);
+
+
+            modelBuilder.Entity<ColorProduct>().HasKey(p => new { p.ProductId, p.ColorId });
+            modelBuilder.Entity<ColorProduct>()
+                .HasOne(cp => cp.Color)
+                .WithMany(c => c.Products)
+                .HasForeignKey(cp => cp.ColorId);
+            modelBuilder.Entity<ColorProduct>()
+                .HasOne(p => p.Product)
+                .WithMany(pr => pr.Colors)
+                .HasForeignKey(p => p.ProductId);
+            modelBuilder.Entity<Product>().Property(p=>p.Soluong).HasDefaultValue(0);
 
 
         }

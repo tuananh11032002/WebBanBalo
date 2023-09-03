@@ -16,6 +16,8 @@ namespace WebBanBalo.Helper
             CreateMap<CategoryDto, Category>();
             CreateMap<Users, UsersDto>();
             CreateMap<UsersDto, Users>();
+            CreateMap<Color, ColorDto>();
+            CreateMap<ColorDto, Color>();
         }
     }
 }

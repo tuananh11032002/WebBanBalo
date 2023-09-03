@@ -7,6 +7,8 @@
         public string Description { get; set; }
         public float Price { get; set; }
         public string Image { get; set; }
+        public int Soluong { get; set; }
+
         public DateTime CreatedAt { get; set; }
     }
 }

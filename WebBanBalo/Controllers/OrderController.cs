@@ -1,10 +1,12 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient.DataClassification;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using WebBanBalo.Dto;
 using WebBanBalo.Interface;
-using WebBanBalo.Migrations;
 using WebBanBalo.Model;
 
 namespace WebBanBalo.Controllers
@@ -26,21 +28,33 @@ namespace WebBanBalo.Controllers
             _userRepository = userRepository;
         }
         [HttpPost("AddOrder")]
-
+        [Authorize]
         public IActionResult PostOrder([FromBody] OrderDto orderDto )
         {
-
+            var userIdClaim = User.FindFirst("Id").Value;
+            orderDto.UserId = Int32.Parse(userIdClaim);
             return Ok(_orderRepository.AddOrder(_mapper.Map<Order>(orderDto)));
         }
         [HttpGet("")]
+        [Authorize(Roles ="admin")]
         public IActionResult GetOrder()
         {
             return Ok(_orderRepository.GetOrder());
         }
+        [HttpGet("orderNow")]
+        [Authorize]
+        public IActionResult GetOrderNow()
+        {
+            var userIdClaim = User.FindFirst("Id").Value;
+          
+            return Ok(_orderRepository.FindOrder(userIdClaim));
+        }
         [HttpPost("Product/{productid}")]
+        [Authorize]
         public IActionResult AddProductIntoOrder( int productid, [FromQuery] int userid, [FromBody] OrderItemInputDto orderItemDto)
         {
-            var orderLast = _orderRepository.FindOrder();
+            var userIdClaim = User.FindFirst("Id").Value;
+            var orderLast = _orderRepository.FindOrder(userIdClaim);
             if (orderLast!=null||orderLast.Done==false)
             {
                 var product = _productRepository.GetProduct(productid);
@@ -72,17 +86,31 @@ namespace WebBanBalo.Controllers
 
         }
         [HttpGet("Product")]
+        [Authorize]
         public IActionResult GetProductOrder()
         {
-
-            var order = _orderRepository.FindOrder();
-            if (order == null) return NotFound();
-            return Ok(_orderRepository.getProductOrder(order.Id));
+          
+            var userIdClaim = User.FindFirst("Id");
+            if (userIdClaim != null)
+            {
+                var userId  = userIdClaim.Value;
+                var order = _orderRepository.FindOrder(userId);
+                if (order == null) return NotFound();
+                return Ok(_orderRepository.getProductOrder(order.Id));
+            }
+            else
+            {
+                return Unauthorized();
+            }
+            
         }
         [HttpDelete("")]
+        [Authorize]
         public IActionResult DeleteOrderProduct([FromQuery]int productId)
         {
-            var order = _orderRepository.FindOrder();
+            var userIdClaim = User.FindFirst("Id").Value;
+            var order = _orderRepository.FindOrder(userIdClaim);
+            
             if (order != null)
             {
                 var orderItem = _orderRepository.FindOrderItem(productId, order.Id);

@@ -4,7 +4,6 @@ using System.Reflection.Metadata.Ecma335;
 using WebBanBalo.Data;
 using WebBanBalo.Dto;
 using WebBanBalo.Interface;
-using WebBanBalo.Migrations;
 using WebBanBalo.Model;
 
 namespace WebBanBalo.Repository
@@ -30,9 +29,9 @@ namespace WebBanBalo.Repository
             var saved = _dataContext.SaveChanges();
             return saved > 0 ? true : false;
         }
-        public Order FindOrder()
+        public Order FindOrder(string userId)
         {
-            var order = _dataContext.Order.FirstOrDefault();
+            var order = _dataContext.Order.Where(p=>p.UserId==Int32.Parse(userId)).FirstOrDefault();
             return order;
         }
         public ICollection<Order> GetOrder()
@@ -43,15 +42,35 @@ namespace WebBanBalo.Repository
         public bool AddProduct(OrderItem orderItem)
         {
             var check = _dataContext.OrderItem.Where(p=>p.ProductId == orderItem.Product.Id && p.OrderId==orderItem.Order.Id).FirstOrDefault();
-
+            var order = _dataContext.Order.Where(p => p.Id == orderItem.Order.Id).FirstOrDefault();
+            var orderProductList = _dataContext.OrderItem.Where(p=>p.OrderId == orderItem.Order.Id).ToList();
+            
             if (check != null)
             {
+
                 check.Quantity = orderItem.Quantity;
+                float totalPrice = 0;
+                foreach(var t in orderProductList)
+                {
+                    totalPrice += t.Price*t.Quantity;
+                }
+                order.TotalAmount = totalPrice;
 
             }
             else
             {
                 _dataContext.Add(orderItem);
+                _dataContext.SaveChanges();
+                var orderItemTemp = _dataContext.OrderItem.Where(p => p.ProductId == orderItem.Product.Id && p.OrderId == orderItem.Order.Id).FirstOrDefault();
+                var orderProductListTemp = _dataContext.OrderItem.Where(p => p.OrderId == orderItem.Order.Id).ToList();
+                orderItemTemp.Quantity = orderItem.Quantity;
+                float totalPrice = 0;
+                foreach (var t in orderProductListTemp)
+                {
+                    totalPrice += t.Price * t.Quantity;
+                }
+                order.TotalAmount = totalPrice;
+
             }
 
             return Save();
@@ -74,9 +93,25 @@ namespace WebBanBalo.Repository
             return orderItem;
         }
 
-        public bool Delete(OrderItem order)
+        public bool Delete(OrderItem orderItem)
         {
-            _dataContext.Remove(order);
+            
+
+            _dataContext.Remove(orderItem);
+            _dataContext.SaveChanges();
+            var order = _dataContext.Order.Where(p => p.Id == orderItem.OrderId).FirstOrDefault();
+
+            var listProduct = _dataContext.OrderItem.Where(p => p.OrderId == orderItem.OrderId).ToList();
+
+            float result = 0;
+
+            foreach (var item in listProduct)
+            {
+                result += item.Price*item.Quantity;
+            }
+            order.TotalAmount = result;
+
+            
             return Save();
         }
     }

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 using WebBanBalo.Data;
 using WebBanBalo.Dto;
 using WebBanBalo.Interface;
@@ -40,6 +41,57 @@ namespace WebBanBalo.Repository
             return _dataContext.Product.Where(p => p.Name == name).FirstOrDefault();
         }
 
+        public ICollection<object> GetProductAndCategory(IEnumerable<string> nameCategory)
+        {
+            
+
+            ICollection<object> result = new List<object>();
+            foreach (string category in nameCategory)
+            {
+                List<Product> products = GetProductbyCategory(category);
+                result.Add(new { name = category, product = products });
+            }
+            return result;
+
+
+        }
+
+        public ICollection<object> GetProductAndCategory(string nameCategory, int option)
+        {
+            ICollection<object> result = new List<object>();
+
+            var products = new List<Product>();
+            if(option == 2)
+            {
+                products =  _dataContext.ProductCategory.Where(p => p.Category.Name == nameCategory).Select(p => p.Product).OrderBy(p => p.Price).ToList();
+
+            }
+
+             else if(option == 3) {
+                products = _dataContext.ProductCategory.Where(p => p.Category.Name == nameCategory).Select(p => p.Product).OrderByDescending(p => p.Price).ToList();
+
+            }
+
+            result.Add(new { name = nameCategory, product = products });
+            
+           
+           
+            return result;
+        }
+
+        public List<Product> GetProductbyCategory(string name )
+        {
+            var productIds = _dataContext.ProductCategory
+                .Where(p => p.Category.Name == name)
+                .Select(p => p.ProductId)
+                .ToList();
+
+            return _dataContext.Product
+                .Where(p => productIds.Contains(p.Id))
+                .ToList();
+        }
+
+
         public decimal GetProductRating(int pokeId)
         {
             throw new NotImplementedException();
@@ -47,6 +99,7 @@ namespace WebBanBalo.Repository
 
         public ICollection<Product> GetProducts()
         {
+
             return _dataContext.Product.OrderByDescending(p => p.Id).ToList();
         }
 

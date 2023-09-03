@@ -46,7 +46,7 @@ namespace WebBanBalo.Controllers
                     );
             }
             return Ok(
-                new ResponseApiToken { Success = true, Message = "Token Created", token = _userRepository.GenerateToken(user) }
+                new ResponseApiToken {User= loginModel, Success = true, Message = "Token Created", token = _userRepository.GenerateToken(user) }
 
                 );
         }
@@ -56,8 +56,8 @@ namespace WebBanBalo.Controllers
         {
             return Ok(_userRepository.getUsers());
         }
-        [HttpGet]
-        public IActionResult GetUser([FromBody] int userid)
+        [HttpGet("{userid}")]
+        public IActionResult GetUser( int userid)
         {
             return Ok(_userRepository.getUser(userid));
         }

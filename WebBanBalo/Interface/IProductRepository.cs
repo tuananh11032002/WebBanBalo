@@ -16,5 +16,8 @@ namespace WebBanBalo.Interface
         bool DeleteProduct(Product Product);
         bool Save();
         List<Product> GetProductSearch(string data);
+        ICollection<object> GetProductAndCategory(IEnumerable<string> nameCategory);
+        ICollection<object> GetProductAndCategory(string nameCategory, int option);
+
     }
 }

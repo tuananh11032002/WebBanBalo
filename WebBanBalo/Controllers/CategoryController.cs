@@ -57,19 +57,20 @@ namespace WebBanBalo.Controllers
             return Ok(_categoryRepository.GetProductbyCate(id));
         }
 
-        [HttpPut("{id}")]
+        [HttpPut]
         [ProducesResponseType(200, Type = typeof(Boolean))]
         [ProducesResponseType(400)]
-        public IActionResult Put(int id, [FromBody] CategoryDto categoryDto)
+        public IActionResult Put( [FromBody] CategoryDto categoryDto)
         {
             if (categoryDto == null) return BadRequest(ModelState);
             if (categoryDto.Id == null) return BadRequest(ModelState);
-            if (!_categoryRepository.CategoryExists(id)) return NotFound();
-            categoryDto.Id = id;
+
+            if (!_categoryRepository.CategoryExists(categoryDto.Id)) return NotFound();
+
             var category = _mapper.Map<Category>(categoryDto);
 
             if (!_categoryRepository.UpdateCategory(category)) return StatusCode(500, "Something Wrong on Server");
-            return NoContent();
+            return Ok(new {status= "success", message= "Đã cập nhật"});
 
         }
         [HttpDelete("{id}")]

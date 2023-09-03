@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebBanBalo.Data;
 
@@ -11,9 +12,11 @@ using WebBanBalo.Data;
 namespace WebBanBalo.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20230728145941_update_color")]
+    partial class update_color
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -47,7 +50,7 @@ namespace WebBanBalo.Migrations
                     b.ToTable("Category");
                 });
 
-            modelBuilder.Entity("WebBanBalo.Model.Color", b =>
+            modelBuilder.Entity("WebBanBalo.Model.ColorProduct", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -55,9 +58,8 @@ namespace WebBanBalo.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Value")
                         .IsRequired()
@@ -65,20 +67,7 @@ namespace WebBanBalo.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Color");
-                });
-
-            modelBuilder.Entity("WebBanBalo.Model.ColorProduct", b =>
-                {
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ColorId")
-                        .HasColumnType("int");
-
-                    b.HasKey("ProductId", "ColorId");
-
-                    b.HasIndex("ColorId");
+                    b.HasIndex("ProductId");
 
                     b.ToTable("ColorProducts");
                 });
@@ -160,11 +149,6 @@ namespace WebBanBalo.Migrations
 
                     b.Property<float>("Price")
                         .HasColumnType("real");
-
-                    b.Property<int>("Soluong")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
 
                     b.HasKey("Id");
 
@@ -256,19 +240,11 @@ namespace WebBanBalo.Migrations
 
             modelBuilder.Entity("WebBanBalo.Model.ColorProduct", b =>
                 {
-                    b.HasOne("WebBanBalo.Model.Color", "Color")
-                        .WithMany("Products")
-                        .HasForeignKey("ColorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("WebBanBalo.Model.Product", "Product")
                         .WithMany("Colors")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Color");
 
                     b.Navigation("Product");
                 });
@@ -336,11 +312,6 @@ namespace WebBanBalo.Migrations
             modelBuilder.Entity("WebBanBalo.Model.Category", b =>
                 {
                     b.Navigation("ProductCategories");
-                });
-
-            modelBuilder.Entity("WebBanBalo.Model.Color", b =>
-                {
-                    b.Navigation("Products");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.Order", b =>

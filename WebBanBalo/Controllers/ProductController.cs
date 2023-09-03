@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using WebBanBalo.Dto;
 using WebBanBalo.Interface;
@@ -30,7 +31,32 @@ namespace WebBanBalo.Controllers
 
         public IActionResult Get()
         {
-            return Ok(_mapper.Map<List<ProductDto>>(_productRepository.GetProducts()));
+           return Ok(_mapper.Map<List<ProductDto>>(_productRepository.GetProducts()));
+            //return Ok(_productRepository.GetProducts());
+
+        }
+        [HttpGet("getProductAndCategory")]
+
+        public IActionResult GetProductAndCategory()
+        {
+            var nameCategory = _categoryRepository.GetCategories().Select(p=>p.Name);
+            ICollection<object> result=_productRepository.GetProductAndCategory(nameCategory );
+
+
+            return Ok(result);
+            
+
+        }
+        [HttpGet("getProductAndCategory/{nameCategory}/{option}")]
+
+        public IActionResult GetProductAndCategoryOrder(string nameCategory,int option)
+        {
+            ICollection<object> result = _productRepository.GetProductAndCategory(nameCategory,option);
+
+
+            return Ok(result);
+
+
         }
         [HttpGet("Search")]
         [ProducesResponseType(200, Type = typeof(IEnumerable<Collection<ProductDto>>))]

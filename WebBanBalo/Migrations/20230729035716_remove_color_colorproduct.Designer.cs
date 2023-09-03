@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebBanBalo.Data;
 
@@ -11,9 +12,11 @@ using WebBanBalo.Data;
 namespace WebBanBalo.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20230729035716_remove_color_colorproduct")]
+    partial class remove_color_colorproduct
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -45,42 +48,6 @@ namespace WebBanBalo.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Category");
-                });
-
-            modelBuilder.Entity("WebBanBalo.Model.Color", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Color");
-                });
-
-            modelBuilder.Entity("WebBanBalo.Model.ColorProduct", b =>
-                {
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ColorId")
-                        .HasColumnType("int");
-
-                    b.HasKey("ProductId", "ColorId");
-
-                    b.HasIndex("ColorId");
-
-                    b.ToTable("ColorProducts");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.Order", b =>
@@ -160,11 +127,6 @@ namespace WebBanBalo.Migrations
 
                     b.Property<float>("Price")
                         .HasColumnType("real");
-
-                    b.Property<int>("Soluong")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
 
                     b.HasKey("Id");
 
@@ -254,25 +216,6 @@ namespace WebBanBalo.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("WebBanBalo.Model.ColorProduct", b =>
-                {
-                    b.HasOne("WebBanBalo.Model.Color", "Color")
-                        .WithMany("Products")
-                        .HasForeignKey("ColorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WebBanBalo.Model.Product", "Product")
-                        .WithMany("Colors")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Color");
-
-                    b.Navigation("Product");
-                });
-
             modelBuilder.Entity("WebBanBalo.Model.Order", b =>
                 {
                     b.HasOne("WebBanBalo.Model.Users", "User")
@@ -338,11 +281,6 @@ namespace WebBanBalo.Migrations
                     b.Navigation("ProductCategories");
                 });
 
-            modelBuilder.Entity("WebBanBalo.Model.Color", b =>
-                {
-                    b.Navigation("Products");
-                });
-
             modelBuilder.Entity("WebBanBalo.Model.Order", b =>
                 {
                     b.Navigation("OrderItems");
@@ -350,8 +288,6 @@ namespace WebBanBalo.Migrations
 
             modelBuilder.Entity("WebBanBalo.Model.Product", b =>
                 {
-                    b.Navigation("Colors");
-
                     b.Navigation("OrderItems");
 
                     b.Navigation("ProductCategories");
