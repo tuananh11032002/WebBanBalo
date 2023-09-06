@@ -36,7 +36,7 @@ namespace WebBanBalo.Repository
                     //new Claim(ClaimTypes.Role, "admin")
 
                 }),
-                Expires=DateTime.UtcNow.AddHours(1),
+                Expires=DateTime.UtcNow.AddMinutes(1),
                 SigningCredentials= new SigningCredentials(new SymmetricSecurityKey(secretKeybytes),SecurityAlgorithms.HmacSha256Signature)
             };
             var token = jwtTokenHandler.CreateToken((description));
