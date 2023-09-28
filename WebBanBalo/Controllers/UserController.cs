@@ -46,7 +46,7 @@ namespace WebBanBalo.Controllers
                     );
             }
             return Ok(
-                new ResponseApiToken {User= loginModel, Success = true, Message = "Token Created", token = _userRepository.GenerateToken(user) }
+                new ResponseApiToken {userName= loginModel.userName,Role=user.Role, Success = true, Message = "Token Created", token = _userRepository.GenerateToken(user) }
 
                 );
         }

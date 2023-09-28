@@ -8,7 +8,8 @@ namespace WebBanBalo.Model
         public bool Success { get; set; }
         public object token { get; set; }
         public string  Message { get; set; }
-        public LoginModel User { get; set; }
+        public  string userName { get; set; }
+        public string Role { get; set; }
                 
 }
 }

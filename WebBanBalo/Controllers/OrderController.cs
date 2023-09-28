@@ -45,17 +45,19 @@ namespace WebBanBalo.Controllers
         [Authorize]
         public IActionResult GetOrderNow()
         {
+            string authorizationHeader = HttpContext.Request.Headers["Authorization"];
+
             var userIdClaim = User.FindFirst("Id").Value;
           
             return Ok(_orderRepository.FindOrder(userIdClaim));
         }
         [HttpPost("Product/{productid}")]
         [Authorize]
-        public IActionResult AddProductIntoOrder( int productid, [FromQuery] int userid, [FromBody] OrderItemInputDto orderItemDto)
+        public IActionResult AddProductIntoOrder( int productid, [FromBody] OrderItemInputDto orderItemDto)
         {
             var userIdClaim = User.FindFirst("Id").Value;
             var orderLast = _orderRepository.FindOrder(userIdClaim);
-            if (orderLast!=null||orderLast.Done==false)
+            if (orderLast!=null && orderLast.Done==false)
             {
                 var product = _productRepository.GetProduct(productid);
                 if (product == null) return NotFound("Product dont exist");
@@ -73,15 +75,15 @@ namespace WebBanBalo.Controllers
             }
             else
             {
-                var user = _userRepository.getUser(userid);
+                var user = _userRepository.getUser(Int32.Parse(userIdClaim));
                 if (user == null) return NotFound("User does not exist");
                 Order order = new Order
                 {
-                    UserId = userid
+                    UserId = Int32.Parse(userIdClaim)
                 };
                 _orderRepository.AddOrder(order);
 
-                return Ok(AddProductIntoOrder(productid,userid,orderItemDto));
+                return Ok(AddProductIntoOrder(productid, orderItemDto));
             }
 
         }

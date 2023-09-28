@@ -8,6 +8,7 @@ namespace WebBanBalo.Data
         public DataContext(DbContextOptions options) : base(options)
         {
         }
+        public DbSet<Message> Message { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Category> Category { get; set; }
         public DbSet<Order> Order { get; set; }
@@ -57,6 +58,21 @@ namespace WebBanBalo.Data
                 .WithMany(pr => pr.Colors)
                 .HasForeignKey(p => p.ProductId);
             modelBuilder.Entity<Product>().Property(p=>p.Soluong).HasDefaultValue(0);
+
+            modelBuilder.Entity<Users>().Property(p => p.Role).HasDefaultValue("user");
+
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.ReceiveUser)
+                .WithMany(u => u.ReceivedMessages)
+                .HasForeignKey(m => m.ReceiverUserId)
+                        .OnDelete(DeleteBehavior.Cascade);
+
+
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.SenderUser)
+                .WithMany(u => u.SentMessages)
+                .HasForeignKey(m => m.SenderUserId)           
+                .OnDelete(DeleteBehavior.Restrict);
 
 
         }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebBanBalo.Data;
 
@@ -11,9 +12,11 @@ using WebBanBalo.Data;
 namespace WebBanBalo.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20230926141858_message")]
+    partial class message
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -95,20 +98,18 @@ namespace WebBanBalo.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("ReceiverUserId")
-                        .HasColumnType("int");
+                    b.Property<string>("ReceiverUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("SenderUserId")
-                        .HasColumnType("int");
+                    b.Property<string>("SenderUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ReceiverUserId");
-
-                    b.HasIndex("SenderUserId");
 
                     b.ToTable("Message");
                 });
@@ -275,12 +276,6 @@ namespace WebBanBalo.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
-                        .HasDefaultValue("user");
-
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -307,25 +302,6 @@ namespace WebBanBalo.Migrations
                     b.Navigation("Color");
 
                     b.Navigation("Product");
-                });
-
-            modelBuilder.Entity("WebBanBalo.Model.Message", b =>
-                {
-                    b.HasOne("WebBanBalo.Model.Users", "ReceiveUser")
-                        .WithMany("ReceivedMessages")
-                        .HasForeignKey("ReceiverUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WebBanBalo.Model.Users", "SenderUser")
-                        .WithMany("SentMessages")
-                        .HasForeignKey("SenderUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ReceiveUser");
-
-                    b.Navigation("SenderUser");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.Order", b =>
@@ -415,10 +391,6 @@ namespace WebBanBalo.Migrations
             modelBuilder.Entity("WebBanBalo.Model.Users", b =>
                 {
                     b.Navigation("Orders");
-
-                    b.Navigation("ReceivedMessages");
-
-                    b.Navigation("SentMessages");
                 });
 #pragma warning restore 612, 618
         }

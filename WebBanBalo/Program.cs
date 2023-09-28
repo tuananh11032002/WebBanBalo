@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using System.Text;
 using WebBanBalo;
 using WebBanBalo.Data;
@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.Filters;
+using WebBanBalo.HubService;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,6 +69,7 @@ builder.Services.AddLogging(builder =>
     builder.AddFilter(DbLoggerCategory.Database.Command.Name, LogLevel.Information)
            .AddConsole(); 
 });
+builder.Services.AddSignalR();
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json")
@@ -84,6 +87,27 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(secretKeyBytes),
             ClockSkew = TimeSpan.Zero,
         };
+        opt.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+
+                // If the request is for our hub...
+                var path = context.HttpContext.Request.Path;
+                
+                if (!string.IsNullOrEmpty(accessToken))
+                {
+                    if (path.StartsWithSegments("/messageHub"))
+                    {
+                        // Read the token out of the query string
+                        context.Token = accessToken;
+                    }
+                }
+               
+                return Task.CompletedTask;
+            }
+        };
     });
 var app = builder.Build();
 if (args.Length == 1 && args[0].ToLower() == "seeddata")
@@ -100,20 +124,25 @@ void SeedData(IHost app)
     }
 }
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+app.UseCors(builder => builder.WithOrigins("http://localhost:3000").AllowAnyHeader().AllowAnyMethod().AllowCredentials());
+app.UseRouting();
 app.UseHttpsRedirection();
-app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()
-); 
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseEndpoints(endpoints =>
+{
+    
+    endpoints.MapHub<MessageService>("/messageHub");
 
-app.MapControllers();
+    endpoints.MapControllers();
+});
+
 
 app.Run();

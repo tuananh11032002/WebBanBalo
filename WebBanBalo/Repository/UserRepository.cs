@@ -33,10 +33,10 @@ namespace WebBanBalo.Repository
                     new Claim(JwtRegisteredClaimNames.Jti,Guid.NewGuid().ToString()),
                     new Claim("UserName",user.UserName),
                     new Claim("Id", user.Id.ToString()),
-                    //new Claim(ClaimTypes.Role, "admin")
+                    new Claim(ClaimTypes.Role, user.Role)
 
                 }),
-                Expires=DateTime.UtcNow.AddMinutes(1),
+                Expires=DateTime.UtcNow.AddDays(1),
                 SigningCredentials= new SigningCredentials(new SymmetricSecurityKey(secretKeybytes),SecurityAlgorithms.HmacSha256Signature)
             };
             var token = jwtTokenHandler.CreateToken((description));
