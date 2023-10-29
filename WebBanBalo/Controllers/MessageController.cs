@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection.Metadata.Ecma335;
 using WebBanBalo.Data;
+using WebBanBalo.Dto;
 using WebBanBalo.Model;
 
 namespace WebBanBalo.Controllers
@@ -15,9 +17,13 @@ namespace WebBanBalo.Controllers
         public MessageController(DataContext context) {
             _context = context;
         }
-        [HttpGet("{senderId}/{receiverId}")]
-        public async Task<ActionResult<IEnumerable<Message>>> GetMessages(int senderId, int receiverId)
+        [HttpGet("{receiverId}")]
+        [Authorize]
+
+        public async Task<ActionResult<IEnumerable<Message>>> GetMessages( int receiverId)
         {
+            var senderId = int.Parse(User.FindFirst("Id").Value);
+
             var messages = await _context.Message
                 .Where(m =>
                     (m.SenderUserId == senderId && m.ReceiverUserId == receiverId) ||
@@ -28,26 +34,46 @@ namespace WebBanBalo.Controllers
             return messages;
         }
         [HttpGet("userList")]
-        public List<Users> GetRecentChatUsers(int userId)
+        [Authorize]
+        public List<RecentChatUserDto> GetRecentChatUsers()
         {
+            var userId = int.Parse(User.FindFirst("Id").Value);
+
             var recentChatUsers = _context.Message
-                .Where(m => m.SenderUserId == userId || m.ReceiverUserId == userId)
-                .GroupBy(m => m.SenderUserId == userId ? m.ReceiverUserId : m.SenderUserId)
-                .Select(g => new
+                   .Where(m => m.SenderUserId == userId || m.ReceiverUserId == userId)
+                   .GroupBy(m => m.SenderUserId == userId ? m.ReceiverUserId : m.SenderUserId)
+                   .Select(g => new
+                   {
+                       UserId = g.Key,
+                       LastMessage = g.OrderByDescending(m => m.Timestamp).FirstOrDefault()
+                   })
+                   .ToList();
+
+
+            var userDtos = new List<RecentChatUserDto>();
+
+            foreach (var chatUser in recentChatUsers)
+            {
+                var user = _context.Users.FirstOrDefault(u => u.Id == chatUser.UserId);
+
+                if (user != null && chatUser.LastMessage != null)
                 {
-                    UserId = g.Key,
-                    LastMessageSentAt = g.Max(m => m.Timestamp)
-                })
-                .OrderByDescending(u => u.LastMessageSentAt)
-                .Select(u => u.UserId)
-                .ToList();
+                    var userDto = new RecentChatUserDto
+                    {
+                        UserId = user.Id,
+                        UserName = user.UserName,
+                        LastMessageContent = chatUser.LastMessage.Content,
+                        LastMessageSentTimeString = chatUser.LastMessage.Timestamp.ToString("HH:mm:ss dd/MM/yyyy")
+                    };
 
-            var users = _context.Users
-                .Where(u => recentChatUsers.Contains(u.Id))
-                .ToList();
+                    userDtos.Add(userDto);
+                }
+            }
 
-            return users;
+            return userDtos;
         }
+
+
 
     }
 }

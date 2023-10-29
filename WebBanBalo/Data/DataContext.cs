@@ -8,31 +8,26 @@ namespace WebBanBalo.Data
         public DataContext(DbContextOptions options) : base(options)
         {
         }
+        public DbSet<Notification> Notification { get; set; }
         public DbSet<Message> Message { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Category> Category { get; set; }
         public DbSet<Order> Order { get; set; }
         public DbSet<OrderItem> OrderItem { get; set; }
         public DbSet<Product>  Product { get; set; }
-        public DbSet<ProductCategory> ProductCategory { get; set; }
+
         public DbSet<Users> Users { get; set; }
         public DbSet<ColorProduct> ColorProducts { get; set; }
         public DbSet<Color> Color { get; set; }
+        public DbSet<ProductImage> ProductImage { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-             
-            modelBuilder.Entity<ProductCategory>()
-              .HasKey(p => new { p.CategoryId, p.ProductId });
-            modelBuilder.Entity<ProductCategory>()
-                .HasOne(p => p.Category)
-                .WithMany(pc=>pc.ProductCategories)
-                .HasForeignKey(p => p.CategoryId);
-            modelBuilder.Entity<ProductCategory>()
-                .HasOne(p => p.Product)
-                .WithMany(p => p.ProductCategories)
-                .HasForeignKey(p => p.ProductId);
-
-
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.Categories)
+                .WithMany(p => p.Products)
+                .HasForeignKey(p => p.CategoryId)
+                .OnDelete(DeleteBehavior.SetNull);
             modelBuilder.Entity<OrderItem>()
                 .HasKey(p => new { p.ProductId, p.OrderId });
             modelBuilder.Entity<OrderItem>()
@@ -43,6 +38,7 @@ namespace WebBanBalo.Data
                 HasOne(p => p.Product).
                 WithMany(p=>p.OrderItems).
                 HasForeignKey(p=>p.ProductId);
+            modelBuilder.Entity<Notification>().HasOne(p => p.User).WithMany(p => p.Notification).HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Order>().Property(p => p.Done).HasDefaultValue(false);
             modelBuilder.Entity<Order>().Property(p => p.TotalAmount).HasDefaultValue(0);
@@ -75,6 +71,11 @@ namespace WebBanBalo.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
 
+            modelBuilder.Entity<ProductImage>().HasOne(p => p.Product).WithMany(p => p.Images).HasForeignKey(p => p.ProductId);
+
+            modelBuilder.Entity<Product>()
+                .Property(p => p.CreatedAt)
+                .HasDefaultValue(DateTime.Now);
         }
     }
 }

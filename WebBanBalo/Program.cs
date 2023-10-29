@@ -12,40 +12,63 @@ using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.Filters;
 using WebBanBalo.HubService;
 using Microsoft.Extensions.Options;
+using System.Reflection;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: MyAllowSpecificOrigins,
+                      policy =>
+                      {
+                          policy.WithOrigins("http://localhost:3000").AllowAnyHeader()
+                                                  .AllowAnyMethod().AllowCredentials();
+                      });
+});
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(p=>p.JsonSerializerOptions.MaxDepth=64);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "Your API", Version = "v1" });
-
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "BE BALO SHOP ", Version = "v1" });
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
     // Add JWT token authorization
-    var securityScheme = new OpenApiSecurityScheme
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
         Name = "Authorization",
-        Description = "Enter 'Bearer {token}'",
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Reference = new OpenApiReference
+        Type = SecuritySchemeType.ApiKey
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
         {
-            Type = ReferenceType.SecurityScheme,
-            Id = JwtBearerDefaults.AuthenticationScheme
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] { }
         }
-    };
+    });
+});
 
-    options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, securityScheme);
-    options.OperationFilter<SecurityRequirementsOperationFilter>();
-}); 
-builder.Services.AddCors();
 builder.Services.AddAutoMapper(typeof(MappingProfiles).Assembly);
-
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = null;
+    });
 builder.Services.AddTransient<Seed>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICategoryRepository,CategoryRepository>();
@@ -69,6 +92,8 @@ builder.Services.AddLogging(builder =>
     builder.AddFilter(DbLoggerCategory.Database.Command.Name, LogLevel.Information)
            .AddConsole(); 
 });
+
+
 builder.Services.AddSignalR();
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
@@ -110,29 +135,26 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 var app = builder.Build();
-if (args.Length == 1 && args[0].ToLower() == "seeddata")
-    SeedData(app);
+app.UseCors(MyAllowSpecificOrigins);
 
-void SeedData(IHost app)
+app.UseStaticFiles();
+
+
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    var scopedFactory = app.Services.GetService<IServiceScopeFactory>();
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API Name");
+});
 
-    using (var scope = scopedFactory.CreateScope())
-    {
-        var service = scope.ServiceProvider.GetService<Seed>();
-        service.SeedDataContext();
-    }
-}
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+//app.UseCors(builder => builder.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 
-app.UseCors(builder => builder.WithOrigins("http://localhost:3000").AllowAnyHeader().AllowAnyMethod().AllowCredentials());
-app.UseRouting();
+
+//app.UseCors(builder => builder.WithOrigins("http://192.168.1.4:3000", "https://192.168.1.4:3000", "http://localhost:3000").AllowAnyHeader().AllowAnyMethod().AllowCredentials());
+
 app.UseHttpsRedirection();
+
+app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();

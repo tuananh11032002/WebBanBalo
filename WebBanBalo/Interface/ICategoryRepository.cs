@@ -15,7 +15,5 @@ namespace WebBanBalo.Interface
         bool UpdateCategory(Category Category);
         bool DeleteCategory(Category Category);
         bool Save();
-        ICollection<object> GetProductbyCate(int id);
-        Category GetCategoryByProduct(int productId);
     }
 }

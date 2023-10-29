@@ -53,13 +53,13 @@ namespace WebBanBalo.Controllers
         }
         [HttpPost("Product/{productid}")]
         [Authorize]
-        public IActionResult AddProductIntoOrder( int productid, [FromBody] OrderItemInputDto orderItemDto)
+        public async Task<IActionResult> AddProductIntoOrder( int productid, [FromBody] OrderItemInputDto orderItemDto)
         {
             var userIdClaim = User.FindFirst("Id").Value;
             var orderLast = _orderRepository.FindOrder(userIdClaim);
             if (orderLast!=null && orderLast.Done==false)
             {
-                var product = _productRepository.GetProduct(productid);
+                var product = await _productRepository.GetProductByIdAsync(productid);
                 if (product == null) return NotFound("Product dont exist");
                 else
                 {

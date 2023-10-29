@@ -30,7 +30,16 @@ namespace WebBanBalo.Controllers
             _mapper = autoMapper;
             _appSetting= monitor.CurrentValue;
         }
+        /// <summary>
+        /// API for User Login
+        /// </summary>
+        /// <remarks>
+        /// api login
+        /// </remarks>
+        /// <param name="loginModel"></param>
+        /// <returns></returns>
         [HttpPost("Login")]
+        
         public IActionResult Validate([FromBody] LoginModel loginModel)
         {
             var user = _userRepository.getUser(loginModel);
@@ -45,8 +54,9 @@ namespace WebBanBalo.Controllers
                     }
                     );
             }
+            bool resultCheck=_userRepository.IsHasFirstMessage(user.Id);
             return Ok(
-                new ResponseApiToken {userName= loginModel.userName,Role=user.Role, Success = true, Message = "Token Created", token = _userRepository.GenerateToken(user) }
+                new ResponseApiToken {UserId=user.Id.ToString(),userName= loginModel.userName,Role=user.Role, Success = true, Message = "Token Created", token = _userRepository.GenerateToken(user) }
 
                 );
         }

@@ -2,6 +2,7 @@
 using Microsoft.IdentityModel.Tokens;
 using System.Data;
 using System.IdentityModel.Tokens.Jwt;
+using System.Reflection.Metadata.Ecma335;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -102,6 +103,71 @@ namespace WebBanBalo.Repository
         public Users getUser(int userid)
         {
             return _dataContext.Users.Where(p => p.Id == userid).FirstOrDefault();
+        }
+
+        public bool IsHasFirstMessage(int id)
+        {
+            try
+            {
+                var user = _dataContext.Users.Where((p) => p.Id == id).FirstOrDefault();
+
+                if (user!=null)
+                {
+                    string userRole = user.Role;
+                      if(userRole =="admin")
+                      {
+                            ICollection<Users> users = _dataContext.Users.Where(p=>p.Id!=user.Id).ToList();
+                            foreach( var temp in users)
+                            {
+                                int count =_dataContext.Message.Where(m => (m.SenderUserId == user.Id && m.ReceiverUserId == temp.Id) ||
+                                                                (m.SenderUserId == temp.Id && m.ReceiverUserId == user.Id)).Count();
+                                if(count == 0)
+                                {
+                                    _dataContext.Message.Add(new Message()
+                                    {
+                                        ReceiverUserId = temp.Id,
+                                        SenderUserId = user.Id,
+                                        Content = "Đây là tin nhắn tự động, nếu bạn cần sự giúp đỡ hãy chat với chúng tôi để được hỗ trợ",
+                                        Timestamp = DateTime.Now,
+                                    
+                                    });
+                                    _dataContext.SaveChanges();
+                                }
+
+                            }
+                      }
+                      else
+                      {
+                            ICollection<Users> users = _dataContext.Users.Where(p => p.Role =="admin").ToList();
+                            foreach (var temp in users)
+                            {
+                                int count = _dataContext.Message.Where(m => (m.SenderUserId == user.Id && m.ReceiverUserId == temp.Id) ||
+                                                                (m.SenderUserId == temp.Id && m.ReceiverUserId == user.Id)).Count();
+                                if (count == 0)
+                                {
+                                    _dataContext.Message.Add(new Message()
+                                    {
+                                        ReceiverUserId = user.Id,
+                                        SenderUserId = temp.Id,
+                                        Content = "Đây là tin nhắn tự động, nếu bạn cần sự giúp đỡ hãy chat với chúng tôi để được hỗ trợ",
+                                        Timestamp = DateTime.Now,
+
+                                    });
+                                    _dataContext.SaveChanges();
+                                }
+
+                            }
+                       }
+                      return true;
+
+
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

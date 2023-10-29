@@ -28,9 +28,17 @@ namespace WebBanBalo.Controllers
             return Ok(_mapper.Map<List<CategoryDto>>(_categoryRepository.GetCategories()));
         }
 
+
+        /// <summary>
+        /// Api create Category
+        /// </summary>
+        /// <param name="categoryDto"></param>
+        /// <returns></returns>
         [HttpPost]
         [ProducesResponseType(200, Type = typeof(Boolean))]
-        public IActionResult CreateProduct([FromBody] CategoryDto categoryDto)
+
+        
+        public IActionResult CreateCategory([FromBody] CategoryDto categoryDto)
         {
             var category = _mapper.Map<Category>(categoryDto);
             if (!ModelState.IsValid)
@@ -40,6 +48,13 @@ namespace WebBanBalo.Controllers
 
             return Ok(_categoryRepository.CreateCategory(category));
         }
+        
+        
+        /// <summary>
+        /// Api Get Category by ID
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         [HttpGet("{id}")]
         [ProducesResponseType(200, Type = typeof(Product))]
 
@@ -51,11 +66,7 @@ namespace WebBanBalo.Controllers
             var product = _mapper.Map<CategoryDto>(_categoryRepository.GetCategory(id));
             return Ok(product);
         }
-        [HttpGet("{id}/product")]
-        public IActionResult GetProductbyCate(int id)
-        {
-            return Ok(_categoryRepository.GetProductbyCate(id));
-        }
+ 
 
         [HttpPut]
         [ProducesResponseType(200, Type = typeof(Boolean))]

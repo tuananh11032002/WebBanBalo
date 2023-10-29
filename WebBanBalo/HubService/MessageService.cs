@@ -5,6 +5,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using WebBanBalo.Data;
 using WebBanBalo.Model;
+using Newtonsoft.Json;
 
 namespace WebBanBalo.HubService
 {
@@ -73,24 +74,46 @@ namespace WebBanBalo.HubService
         {
             try
             {
+                var messageSQL = new Message() { Content = message, Timestamp = DateTime.Now, ReceiverUserId = receiverUserId, SenderUserId = int.Parse(Context.User.FindFirst("Id").Value) };
 
                 if (_connection.TryGetValue(receiverUserId.ToString(), out List<string> connectionIds))
                 {
                     // Gửi tin nhắn đến tất cả các kết nối của người nhận
                     foreach (var connectionId in connectionIds)
                     {
-                        await Clients.Client(connectionId).SendAsync("ReceiveMessage", Context.User.FindFirst("UserName").Value, message);
+                        await Clients.Client(connectionId).SendAsync("ReceiveMessage",  JsonConvert.SerializeObject(messageSQL));
                     }
+                   
                 }
-                var messageSQL = new Message() { Content= message, Timestamp=DateTime.Now, ReceiverUserId=receiverUserId,SenderUserId=int.Parse(Context.User.FindFirst("Id").Value) };
-                _dbContext.Message.Add(messageSQL);
-
-
-                if (!connectionIds.Contains(Context.ConnectionId))
+                if ((connectionIds != null && !connectionIds.Contains(Context.ConnectionId)) || connectionIds== null)
                 {
-                    await Clients.Client(Context.ConnectionId).SendAsync("ReceiveMessage", Context.User.FindFirst("UserName").Value, message);
+                    await Clients.Client(Context.ConnectionId).SendAsync("ReceiveMessage", JsonConvert.SerializeObject(messageSQL));
 
-                }
+                } 
+                
+                _dbContext.Message.Add(messageSQL);
+                _dbContext.SaveChanges();
+
+
+               
+            }
+            catch
+            {
+                await Clients.Caller.SendAsync("ErrorMessage", "Server Error.");
+
+            }
+        }
+        
+        public async Task SendNotificatioṇ̣(string user,string message)
+        {
+            try
+            {
+                var notification = new Notification()
+                {
+                    Message = message,
+                    CreatedAt = DateTime.Now,
+                };
+                
             }
             catch
             {
@@ -99,7 +122,9 @@ namespace WebBanBalo.HubService
             }
         }
 
+
     }
+    
         
     
 }

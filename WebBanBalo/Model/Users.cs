@@ -9,6 +9,8 @@
         public string Password { get; set; }
         public string Role { get; set; }
         public DateTime CreatedDate { get; set; }
+        public ICollection<Notification> Notification { get; set; }
+
         public ICollection<Order> Orders { get; set; }
         public ICollection<Message> SentMessages { get; set; }
         public ICollection<Message> ReceivedMessages { get; set; }

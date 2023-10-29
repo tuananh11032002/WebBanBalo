@@ -7,7 +7,10 @@
         public string Image { get; set; }
         public string ImageReplace { get; set; }
 
-        public ICollection<ProductCategory> ProductCategories { get; set; }
+        public ICollection<Product> Products { get; set; }
+
+
+
 
     }
 }

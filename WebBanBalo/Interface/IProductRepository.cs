@@ -1,23 +1,16 @@
 ﻿using WebBanBalo.Dto;
 using WebBanBalo.Model;
+using WebBanBalo.ModelOther;
 
 namespace WebBanBalo.Interface
 {
     public interface IProductRepository
     {
-        ICollection<Product> GetProducts();
-        Product GetProduct(int id);
-        Product GetProduct(string name);
-        Product GetProductTrimToUpper(ProductDto ProductCreate);
-        decimal GetProductRating(int pokeId);
-        bool ProductExists(int pokeId);
-        bool CreateProduct( Product Product, ProductCategory productCategory);
-        bool UpdateProduct( Product Product);
+        bool UpdateProduct(Product Product);
+        bool ProductExists(int productId);
+        Task<IEnumerable<Product>> GetProductsAsync(string search, string orderBy, int page, int pageSize);
+        Task<Product> CreateProductWithImage(ProductInputModel productInput);
         bool DeleteProduct(Product Product);
-        bool Save();
-        List<Product> GetProductSearch(string data);
-        ICollection<object> GetProductAndCategory(IEnumerable<string> nameCategory);
-        ICollection<object> GetProductAndCategory(string nameCategory, int option);
-
+        Task<Product> GetProductByIdAsync(int productId);
     }
 }

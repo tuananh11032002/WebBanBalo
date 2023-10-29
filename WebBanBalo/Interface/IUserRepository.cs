@@ -10,5 +10,6 @@ namespace WebBanBalo.Interface
         bool getUser(string userName);
         List<Users> getUsers();
         Users getUser(int userid);
+        bool IsHasFirstMessage(int id);
     }
 }

@@ -113,6 +113,31 @@ namespace WebBanBalo.Migrations
                     b.ToTable("Message");
                 });
 
+            modelBuilder.Entity("WebBanBalo.Model.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notification");
+                });
+
             modelBuilder.Entity("WebBanBalo.Model.Order", b =>
                 {
                     b.Property<int>("Id")
@@ -173,14 +198,16 @@ namespace WebBanBalo.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("CategoryId")
+                        .IsRequired()
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValue(new DateTime(2023, 10, 29, 14, 42, 48, 361, DateTimeKind.Local).AddTicks(8675));
 
                     b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Image")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -198,22 +225,31 @@ namespace WebBanBalo.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CategoryId");
+
                     b.ToTable("Product");
                 });
 
-            modelBuilder.Entity("WebBanBalo.Model.ProductCategory", b =>
+            modelBuilder.Entity("WebBanBalo.Model.ProductImage", b =>
                 {
-                    b.Property<int>("CategoryId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
 
-                    b.HasKey("CategoryId", "ProductId");
+                    b.HasKey("Id");
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("ProductCategory");
+                    b.ToTable("ProductImage");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.RefreshToken", b =>
@@ -328,6 +364,17 @@ namespace WebBanBalo.Migrations
                     b.Navigation("SenderUser");
                 });
 
+            modelBuilder.Entity("WebBanBalo.Model.Notification", b =>
+                {
+                    b.HasOne("WebBanBalo.Model.Users", "User")
+                        .WithMany("Notification")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("WebBanBalo.Model.Order", b =>
                 {
                     b.HasOne("WebBanBalo.Model.Users", "User")
@@ -358,21 +405,24 @@ namespace WebBanBalo.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("WebBanBalo.Model.ProductCategory", b =>
+            modelBuilder.Entity("WebBanBalo.Model.Product", b =>
                 {
-                    b.HasOne("WebBanBalo.Model.Category", "Category")
-                        .WithMany("ProductCategories")
+                    b.HasOne("WebBanBalo.Model.Category", "Categories")
+                        .WithMany("Products")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.SetNull)
                         .IsRequired();
 
+                    b.Navigation("Categories");
+                });
+
+            modelBuilder.Entity("WebBanBalo.Model.ProductImage", b =>
+                {
                     b.HasOne("WebBanBalo.Model.Product", "Product")
-                        .WithMany("ProductCategories")
+                        .WithMany("Images")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Category");
 
                     b.Navigation("Product");
                 });
@@ -390,7 +440,7 @@ namespace WebBanBalo.Migrations
 
             modelBuilder.Entity("WebBanBalo.Model.Category", b =>
                 {
-                    b.Navigation("ProductCategories");
+                    b.Navigation("Products");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.Color", b =>
@@ -407,13 +457,15 @@ namespace WebBanBalo.Migrations
                 {
                     b.Navigation("Colors");
 
-                    b.Navigation("OrderItems");
+                    b.Navigation("Images");
 
-                    b.Navigation("ProductCategories");
+                    b.Navigation("OrderItems");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.Users", b =>
                 {
+                    b.Navigation("Notification");
+
                     b.Navigation("Orders");
 
                     b.Navigation("ReceivedMessages");

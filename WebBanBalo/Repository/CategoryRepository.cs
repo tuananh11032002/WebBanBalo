@@ -46,16 +46,7 @@ namespace WebBanBalo.Repository
         {
             return _dataContext.Category.Where(p => p.Name == name).FirstOrDefault();        }
 
-        public Category GetCategoryByProduct(int productId)
-        {
-            var categoryProduct = _dataContext.ProductCategory.Where(p => p.ProductId == productId).FirstOrDefault();
-            Category category ;
-            if (categoryProduct != null)
-            {
-                category= _dataContext.Category.Where(p=>p.Id==categoryProduct.ProductId).FirstOrDefault();
-            }
-            return null;
-        }
+     
 
 
 
@@ -64,25 +55,6 @@ namespace WebBanBalo.Repository
             throw new NotImplementedException();
         }
 
-        public ICollection<object> GetProductbyCate(int id)
-        {
-            var products = _dataContext.ProductCategory
-                                    .Where(p => p.CategoryId == id)
-                                    .Select(p => p.Product)
-                                    .ToList();
-
-            var categoryName = _dataContext.Category
-                                        .Where(c => c.Id == id)
-                                        .Select(c => c.Name)
-                                        .FirstOrDefault();
-
-            var result = new List<object>
-            {
-                new { name = categoryName, product = products }
-            };
-
-            return result;
-        }
 
 
         public bool Save()
