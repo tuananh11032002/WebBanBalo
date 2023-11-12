@@ -1,0 +1,26 @@
+﻿using System.ComponentModel.DataAnnotations;
+using WebBanBalo.Model;
+
+namespace WebBanBalo.ModelOther
+{
+
+
+    public enum PaymentMethod
+    {
+        COD,
+        Momo
+    }
+    public class OrderUpdateModel
+    {
+        [Required]
+        public int Id { get; set; }
+        public float FeeShip { get; set; }
+        public float Discount { get; set; }
+        public string ShippingAddress { get; set; }
+        public string BillingAddress { get; set; }
+        public string? OrderNote { get; set; }
+
+       [EnumDataType(typeof(PaymentMethod))]
+        public PaymentMethod PaymentMethod { get; set; }
+    }
+}

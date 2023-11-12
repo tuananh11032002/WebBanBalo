@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using WebBanBalo.Dto;
 using WebBanBalo.Interface;
 using WebBanBalo.Model;
+using WebBanBalo.ModelOther;
 
 namespace WebBanBalo.Controllers
 {
@@ -27,6 +28,13 @@ namespace WebBanBalo.Controllers
         {
             return Ok(_mapper.Map<List<CategoryDto>>(_categoryRepository.GetCategories()));
         }
+        [HttpGet("admin")]
+        [ProducesResponseType(200, Type = typeof(IEnumerable<CategoryDto>))]
+
+        public IActionResult GetForAdmin()
+        {
+            return Ok(_categoryRepository.GetCategoriesForAdmin());
+        }
 
 
         /// <summary>
@@ -38,15 +46,21 @@ namespace WebBanBalo.Controllers
         [ProducesResponseType(200, Type = typeof(Boolean))]
 
         
-        public IActionResult CreateCategory([FromBody] CategoryDto categoryDto)
+        public async Task<IActionResult> CreateCategory([FromForm] CategoryCreateModel category)
         {
-            var category = _mapper.Map<Category>(categoryDto);
-            if (!ModelState.IsValid)
+            try
             {
-                return BadRequest();
-            }
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest();
+                }
 
-            return Ok(_categoryRepository.CreateCategory(category));
+                return Ok(await _categoryRepository.CreateCategory(category));
+            }
+            catch (Exception ex) 
+            {
+                return StatusCode(500, ex);
+            }
         }
         
         
@@ -71,14 +85,12 @@ namespace WebBanBalo.Controllers
         [HttpPut]
         [ProducesResponseType(200, Type = typeof(Boolean))]
         [ProducesResponseType(400)]
-        public IActionResult Put( [FromBody] CategoryDto categoryDto)
+        public IActionResult Put( [FromForm] CategoryUpdateModel category)
         {
-            if (categoryDto == null) return BadRequest(ModelState);
-            if (categoryDto.Id == null) return BadRequest(ModelState);
+            if (category.Id == null) return BadRequest(ModelState);
 
-            if (!_categoryRepository.CategoryExists(categoryDto.Id)) return NotFound();
+            if (!_categoryRepository.CategoryExists(category.Id)) return NotFound("Category không tồn tại");
 
-            var category = _mapper.Map<Category>(categoryDto);
 
             if (!_categoryRepository.UpdateCategory(category)) return StatusCode(500, "Something Wrong on Server");
             return Ok(new {status= "success", message= "Đã cập nhật"});
@@ -92,15 +104,14 @@ namespace WebBanBalo.Controllers
         {
             if (!_categoryRepository.CategoryExists(id))
             {
-                return NotFound();
+                return NotFound("Không timf thấy sản phẩm");
             }
 
-            var productToDelete = _categoryRepository.GetCategory(id);
 
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            if (!_categoryRepository.DeleteCategory(productToDelete))
+            if (!_categoryRepository.DeleteCategory(id))
             {
                 ModelState.AddModelError("", "Something went wrong deleting category");
             }

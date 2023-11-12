@@ -11,6 +11,7 @@ using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
+using WebBanBalo.ModelOther;
 
 namespace WebBanBalo.Controllers
 {
@@ -42,21 +43,23 @@ namespace WebBanBalo.Controllers
         
         public IActionResult Validate([FromBody] LoginModel loginModel)
         {
+            if(loginModel.userName.IsNullOrEmpty()||loginModel.password.IsNullOrEmpty()) {
+                return BadRequest("Bạn đang để trống 1 trường quan trọng, kiểm tra lại username và password");
+            }
+            
             var user = _userRepository.getUser(loginModel);
             if (user == null)
             {
-                return Ok(
-                    new ResponseApiToken
-                    {
-                        Message = "User not found",
+                return NotFound(
+                  
+                        "User not found"
 
-                        Success = false
-                    }
+                        
                     );
             }
             bool resultCheck=_userRepository.IsHasFirstMessage(user.Id);
             return Ok(
-                new ResponseApiToken {UserId=user.Id.ToString(),userName= loginModel.userName,Role=user.Role, Success = true, Message = "Token Created", token = _userRepository.GenerateToken(user) }
+                new ResponseApiToken {UserId=user.Id.ToString(),userName= loginModel.userName,Role=user.Role, Success = true, Message = "Token Created", token = _userRepository.GenerateToken(user),Image= user.Image,DisplayName= user.HoTen }
 
                 );
         }
@@ -67,19 +70,28 @@ namespace WebBanBalo.Controllers
             return Ok(_userRepository.getUsers());
         }
         [HttpGet("{userid}")]
-        public IActionResult GetUser( int userid)
+        public async Task <IActionResult> GetUser( int userid)
         {
-            return Ok(_userRepository.getUser(userid));
+            var result = await _userRepository.getUser(userid);
+            return Ok(_mapper.Map<UsersDto>(result));
         }
 
 
         [HttpPost("AddUser")]
         public IActionResult AddUser([FromBody] UsersDto users)
         {
-            if (users == null) return BadRequest("Hãy nhập thông tin đầy đủ");
-            if (_userRepository.getUser(users.UserName)) return BadRequest("User da ton tai");
-            var user = _mapper.Map<Users>(users);
-            return Ok(_userRepository.addUser(user));
+            try
+            {
+                if (users == null) return BadRequest("Hãy nhập thông tin đầy đủ");
+                if (_userRepository.getUser(users.UserName)) return BadRequest("User da ton tai");
+                var user = _mapper.Map<Users>(users);
+                return Ok(_userRepository.addUser(user));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest("Something went wrong: " + ex.Message);
+            }
+
         }
         [HttpPost("RenewToken")]
         public IActionResult RenewToken(TokenModel model)
@@ -184,6 +196,34 @@ namespace WebBanBalo.Controllers
             dateTimeInterval=dateTimeInterval.AddSeconds(utcExpireDate).ToUniversalTime();
 
             return dateTimeInterval;
+        }
+
+        [HttpDelete("{userId}")]
+        public async Task <IActionResult> DeleteUser(int userId)
+        {
+            var user = await _userRepository.getUser(userId);
+            if (user == null)
+            {
+                return NotFound("User không tồn tại, không thể xóa  ");
+            }
+            return Ok(_userRepository.DeleteUser(user));
+
+
+        }
+
+        [HttpPut]
+        public async Task<IActionResult> UpdateUser ([FromForm] UserInputModel user)
+        {
+            try
+            {
+                //var userId = Int32.Parse(User.FindFirst("Id").Value);
+                //if (userId != userDto.Id) return BadRequest("Có vẻ nhầm lần gì đó rồi");
+                return Ok(await _userRepository.Update(user));
+            }
+            catch (Exception ex) 
+            {
+                return StatusCode(500, ex);
+            }
         }
     }
 }

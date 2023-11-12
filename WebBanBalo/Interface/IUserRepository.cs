@@ -1,4 +1,6 @@
-﻿using WebBanBalo.Model;
+﻿using WebBanBalo.Dto;
+using WebBanBalo.Model;
+using WebBanBalo.ModelOther;
 
 namespace WebBanBalo.Interface
 {
@@ -9,7 +11,9 @@ namespace WebBanBalo.Interface
         Users getUser(LoginModel loginModel);
         bool getUser(string userName);
         List<Users> getUsers();
-        Users getUser(int userid);
+        Task<Users> getUser(int userid);
         bool IsHasFirstMessage(int id);
+        bool DeleteUser(Users user);
+        Task<bool> Update(UserInputModel user);
     }
 }

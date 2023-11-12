@@ -23,11 +23,18 @@ namespace WebBanBalo.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            
+            
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Categories)
                 .WithMany(p => p.Products)
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Product>().Property(p => p.Discount).HasDefaultValue(0);
+            modelBuilder.Entity<Product>().Property(p => p.Status).HasDefaultValue("publish");
+
+            modelBuilder.Entity<Product>().Property(p => p.Soluong).HasDefaultValue(0);
+
             modelBuilder.Entity<OrderItem>()
                 .HasKey(p => new { p.ProductId, p.OrderId });
             modelBuilder.Entity<OrderItem>()
@@ -53,29 +60,18 @@ namespace WebBanBalo.Data
                 .HasOne(p => p.Product)
                 .WithMany(pr => pr.Colors)
                 .HasForeignKey(p => p.ProductId);
-            modelBuilder.Entity<Product>().Property(p=>p.Soluong).HasDefaultValue(0);
 
             modelBuilder.Entity<Users>().Property(p => p.Role).HasDefaultValue("user");
 
-            modelBuilder.Entity<Message>()
-                .HasOne(m => m.ReceiveUser)
-                .WithMany(u => u.ReceivedMessages)
-                .HasForeignKey(m => m.ReceiverUserId)
-                        .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Users>().HasMany(p => p.ReceivedMessages).WithOne(p => p.ReceiveUser).HasForeignKey(px => px.ReceiverUserId).OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<Users>().HasMany(p => p.SentMessages).WithOne(p => p.SenderUser).HasForeignKey(px => px.SenderUserId).OnDelete(DeleteBehavior.NoAction);
 
-            modelBuilder.Entity<Message>()
-                .HasOne(m => m.SenderUser)
-                .WithMany(u => u.SentMessages)
-                .HasForeignKey(m => m.SenderUserId)           
-                .OnDelete(DeleteBehavior.Restrict);
 
 
             modelBuilder.Entity<ProductImage>().HasOne(p => p.Product).WithMany(p => p.Images).HasForeignKey(p => p.ProductId);
 
-            modelBuilder.Entity<Product>()
-                .Property(p => p.CreatedAt)
-                .HasDefaultValue(DateTime.Now);
+         
         }
     }
 }

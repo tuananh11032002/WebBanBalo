@@ -6,9 +6,18 @@
         public string Name { get; set; }
         public string Description { get; set; }
         public float Price { get; set; }
-        public string Image { get; set; }
-        public int Soluong { get; set; }
+        public float? Discount { get; set; } = 0;
+        public string? Status { get; set; } = string.Empty;
+        public int TotalProduct { get; set; } = 0;
 
+        public List<string> Image { get; set; }
+        public int Soluong { get; set; }
         public DateTime CreatedAt { get; set; }
+        public bool Stock { get; set; }
+
+        public int? CategoryId { get; set; }
+
+        public string? CategoryName { get; set; }
+
     }
 }

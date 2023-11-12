@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Data;
 using System.IdentityModel.Tokens.Jwt;
@@ -7,9 +9,11 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using WebBanBalo.Data;
+using WebBanBalo.Dto;
 using WebBanBalo.Interface;
 using WebBanBalo.Migrations;
 using WebBanBalo.Model;
+using WebBanBalo.ModelOther;
 
 namespace WebBanBalo.Repository
 {
@@ -17,10 +21,12 @@ namespace WebBanBalo.Repository
     {
         private readonly DataContext _dataContext;
         private readonly AppSetting _appSetting;
-        public UserRepository(DataContext dataContext, IOptionsMonitor<AppSetting> optionsMonitor)
+        private readonly IWebHostEnvironment _webHostEnvironment;
+        public UserRepository(DataContext dataContext, IOptionsMonitor<AppSetting> optionsMonitor,IWebHostEnvironment webHostEnvironment)
         {
             _dataContext = dataContext;
-             _appSetting= optionsMonitor.CurrentValue;
+            _appSetting= optionsMonitor.CurrentValue;
+            _webHostEnvironment = webHostEnvironment;
         }
 
         public TokenModel GenerateToken(Users user)
@@ -52,7 +58,7 @@ namespace WebBanBalo.Repository
                 IsUsed = false,
                 IsRevoked = false,
                 IssuedAt = DateTime.UtcNow,
-                ExpiredAt = DateTime.UtcNow.AddMinutes(1)
+                ExpiredAt = DateTime.UtcNow.AddDays(1)
             };
 
             _dataContext.Add(refreshTokenEntity);
@@ -79,13 +85,28 @@ namespace WebBanBalo.Repository
 
         public bool getUser(string userName)
         {
-            var user = _dataContext.Users.FirstOrDefault(p => p.UserName == userName);
+            var user = _dataContext.Users.Where(p => p.UserName == userName).FirstOrDefault();
             return user != null;
         }
 
         public bool addUser(Users user)
         {
+            if(user.HoTen==null) {
+                user.HoTen = user.UserName;
+            }
             _dataContext.Users.Add(user);
+            _dataContext.SaveChanges(true);
+            //Lấy user tại đây: 
+
+            Users addedUser = _dataContext.Users.FirstOrDefault(u => u.UserName == user.UserName);
+
+
+            _dataContext.Order.Add(new Order
+            {
+                UserId = addedUser.Id,
+                
+                
+            });
             return Save(); 
         }
 
@@ -100,9 +121,9 @@ namespace WebBanBalo.Repository
             return _dataContext.Users.ToList();
         }
 
-        public Users getUser(int userid)
+        public async Task<Users> getUser(int userid)
         {
-            return _dataContext.Users.Where(p => p.Id == userid).FirstOrDefault();
+            return await _dataContext.Users.Where(p => p.Id == userid).FirstOrDefaultAsync();
         }
 
         public bool IsHasFirstMessage(int id)
@@ -166,6 +187,55 @@ namespace WebBanBalo.Repository
             }
             catch
             {
+                return false;
+            }
+        }
+
+        public bool DeleteUser(Users user)
+        {
+            _dataContext.Remove(user);
+            return Save();
+        }
+
+        public async Task<bool> Update(UserInputModel user)
+        {
+            try
+            {
+                var image = user.Image;
+                if (image.Length > 0)
+                {
+                    string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(image.FileName);
+                    string imagePath = Path.Combine("images", uniqueFileName);
+                    var imageFilePath = Path.Combine(_webHostEnvironment.WebRootPath, imagePath);
+
+                    using (var stream = new FileStream(imageFilePath, FileMode.Create))
+                    {
+                        await image.CopyToAsync(stream);
+                    }
+
+                    var userTemp = await _dataContext.Users.Where(p => p.Id == user.Id).FirstAsync();
+                    userTemp.HoTen = user.HoTen;
+                    userTemp.Email = user.Email;
+                    userTemp.Phone = user.Phone;
+                    userTemp.Gender = user.Gender;
+                    userTemp.Image = imagePath;
+                }
+                else
+                {
+                    var userTemp = await _dataContext.Users.FirstAsync(p => p.Id == user.Id);
+                    userTemp.HoTen = user.HoTen;
+                    userTemp.Email = user.Email;
+                    userTemp.Phone = user.Phone;
+                    userTemp.Gender = user.Gender;
+                }
+
+                await _dataContext.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Log lỗi hoặc trả về thông báo lỗi cụ thể
+                // Log.Error(ex, "Lỗi xử lý cập nhật người dùng");
                 return false;
             }
         }

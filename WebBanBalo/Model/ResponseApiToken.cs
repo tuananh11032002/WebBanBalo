@@ -11,6 +11,9 @@ namespace WebBanBalo.Model
         public string  Message { get; set; }
         public  string userName { get; set; }
         public string Role { get; set; }
-                
+        public string DisplayName { get; set; }
+        public string Image { get; set; }
+
+
 }
 }

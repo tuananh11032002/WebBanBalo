@@ -24,13 +24,16 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: MyAllowSpecificOrigins,
                       policy =>
                       {
-                          policy.WithOrigins("http://localhost:3000").AllowAnyHeader()
+                          policy.WithOrigins("http://localhost:3000", "http://192.168.2.104:3000").AllowAnyHeader()
                                                   .AllowAnyMethod().AllowCredentials();
                       });
 });
 // Add services to the container.
 
-builder.Services.AddControllers().AddJsonOptions(p=>p.JsonSerializerOptions.MaxDepth=64);
+builder.Services.AddControllers().AddJsonOptions((options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+}));
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
