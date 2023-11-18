@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.IdentityModel.Tokens;
+using System;
 using System.Reflection.Metadata.Ecma335;
 using WebBanBalo.Data;
 using WebBanBalo.Dto;
@@ -24,9 +25,15 @@ namespace WebBanBalo.Repository
 
         public async Task<bool> AddOrder(Order order)
         {
-            await _dataContext.Order.AddAsync(order);
-           
-            return await SaveAsync();
+            try
+            {
+                await _dataContext.Order.AddAsync(order);
+
+                return await SaveAsync();
+            }catch 
+            {
+                return false;
+            }
         }
 
         private async Task<bool> SaveAsync()
@@ -41,8 +48,16 @@ namespace WebBanBalo.Repository
         }
         public async Task<Order> FindOrderWithUserId(string userId)
         {
-            var order= await _dataContext.Order.FirstOrDefaultAsync(p=>p.UserId.ToString()==userId && p.Done==false);
-            return order;
+            try
+            {
+                var order = await _dataContext.Order.FirstOrDefaultAsync(p => p.UserId.ToString() == userId && p.Done == false);
+                return order;
+            }
+            catch
+            {
+                return null;
+            }
+
         }
 
         public async Task< object > FindOrder(string userId)
@@ -68,21 +83,73 @@ namespace WebBanBalo.Repository
                 }).FirstOrDefaultAsync(); 
             return order;
         }
-        public ICollection<Order> GetOrder()
+        public async Task<ValueReturn> GetOrder(int pageIndex, int pageSize, string? search)
         {
-            return _dataContext.Order.ToList();
+
+            try
+            {
+                var listOrder = _dataContext.Order.Where(p => p.Done == true).AsQueryable();
+
+                if (!search.IsNullOrEmpty())
+                {
+                    search = search.ToLower();
+                    listOrder = listOrder.Where(p => p.User.UserName.ToLower().Contains(search) || 
+                    p.Id.ToString().Contains(search)||p.CustomerName.ToLower().Contains(search));
+                }
+                var result = await listOrder.Skip((pageIndex - 1) * pageSize).Take(pageSize)
+                    .Select(p => new
+                    {
+                        CustomerImage = p.User.Image,
+                        OrderId = p.Id,
+                        Date = p.FinishedAt,
+                        CustomerName = p.CustomerName.IsNullOrEmpty() ? "Chưa có" : p.CustomerName,
+                        CustomerEmail = "Chưa có",
+                        Payment = p.PaymentStatus,
+                        Status = p.OrderStatusUpdates.OrderByDescending(pc => pc.UpdateTime).Select(pc=>pc.Status).FirstOrDefault(),
+                        MethodPayment = p.PaymentMethod,
+                        ImagePaymentMethod = p.PaymentMethod == PaymentMethod.Momo ? "images\\MOMO.png" : "images\\COD.jpg"
+                    }).ToListAsync();
+
+                var result2 = new
+                {
+                    TotalOrder = listOrder.ToList().Count,
+                    OrderList = result,
+                };
+                if (result != null)
+                {
+                    return new ValueReturn { Data = result2, Status = true };
+
+                }
+                else
+                {
+                    return new ValueReturn
+                    {
+                        Status = false,
+                        Message = "Có vấn đề gì đó khi lấy giá trị"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn
+                {
+                    Status = false,
+                    Message = ex.Message,
+
+                };
+            }
         }
 
         public ValueReturn AddProduct(OrderItem orderItem)
         {
             var productCheck = _dataContext.Product.Where(p => p.Soluong >= orderItem.Quantity && p.Id == orderItem.Product.Id).FirstOrDefault();
             
-                if (productCheck != null)
-                {
-                //Is Exist
-                var check = _dataContext.OrderItem.Where(p => p.ProductId == orderItem.Product.Id && p.OrderId == orderItem.Order.Id).FirstOrDefault();
-                var order = _dataContext.Order.Where(p => p.Id == orderItem.Order.Id).FirstOrDefault();
-                //            var orderProductList = _dataContext.OrderItem.Where(p => p.OrderId == orderItem.Order.Id).ToList();
+            if (productCheck != null)
+            {
+            //Is Exist
+            var check = _dataContext.OrderItem.Where(p => p.ProductId == orderItem.Product.Id && p.OrderId == orderItem.Order.Id).FirstOrDefault();
+            var order = _dataContext.Order.Where(p => p.Id == orderItem.Order.Id).FirstOrDefault();
+            //            var orderProductList = _dataContext.OrderItem.Where(p => p.OrderId == orderItem.Order.Id).ToList();
 
                 if (check != null)
                 {
@@ -132,16 +199,6 @@ namespace WebBanBalo.Repository
         public Order GetOrder(int id)
         {
             return _dataContext.Order.Where(p => p.Id == id).FirstOrDefault();
-        }
-
-        public async Task<List<OrderItemDto>> getProductOrder(int orderid)
-        {
-            float totalPrice = await _dataContext.OrderItem.Where(p => p.OrderId == orderid).Select(pc=>pc.Quantity*pc.Product.Price).SumAsync();
-            
-             List<OrderItemDto> result = await _dataContext.OrderItem.Where(p => p.OrderId == orderid).Select(p => new OrderItemDto { Product=_mapper.Map<ProductDto>(new Product { Name=p.Product.Name,Images=p.Product.Images, Id=p.Product.Id,Price=p.Product.Price }), Price=totalPrice, Quantity=p.Quantity}).ToListAsync();
-            
-            return result;
-;
         }
 
         public OrderItem FindOrderItem(int productId, int orderId)
@@ -215,9 +272,27 @@ namespace WebBanBalo.Repository
                     orderUpdate.BillingAddress = order.BillingAddress;
                     orderUpdate.PaymentMethod = order.PaymentMethod;
                     orderUpdate.Done = true;
+                    orderUpdate.OrderStatusUpdates.Add(
+                        new OrderStatusUpdate
+                        {
+                            Status = OrderStatus.ReadytoPickup,
+                            UpdateTime=DateTime.Now
+                        }
+                        );
+                    orderUpdate.CustomerPhone = order.CustomerPhone;
+                    orderUpdate.CustomerName = order.CustomerName;
                     _dataContext.Update(orderUpdate);
                     await _dataContext.SaveChangesAsync();
+                    if (order.PaymentMethod == PaymentMethod.Momo)
+                    {
+                        orderUpdate.PaymentStatus = PaymentStatus.Paid;
 
+                    }
+                    else
+                    {
+                        orderUpdate.PaymentStatus = PaymentStatus.Pending;
+
+                    }
 
                     if (orderUpdate.Done)
                     {
@@ -291,14 +366,16 @@ namespace WebBanBalo.Repository
                     Discount = p.Discount,
                     GrandTotal = p.GrandTotal,
                     TotalAmount = p.TotalAmount,
-                    OrderStatus = p.OrderStatus,
+                    OrderStatus = p.OrderStatusUpdates.OrderByDescending(pc=>pc.UpdateTime).Select(pc=>pc.Status).FirstOrDefault(),
                     Product = p.OrderItems.Select(o => new
                     {
                         Quantity = o.Quantity,
                         Name = o.Product.Name,
                         Id = o.ProductId,
                         Price = o.Price,
-                        Image = o.Product.Images.Select(im => im.FilePath).FirstOrDefault()
+                        Image = o.Product.Images.Select(im => im.FilePath).FirstOrDefault(),
+                        IsReview = o.IsReview,
+
 
                     })
                 }).Skip((pageIndex-1)*pageSize).Take(pageSize).ToList() ;
@@ -319,6 +396,149 @@ namespace WebBanBalo.Repository
                     Status = false,
                     Message = ex.Message
                 };
+            }
+        }
+
+        public async Task<ValueReturn> DeleteWithOrderId(int orderId)
+        {
+            try
+            {
+                var order = await _dataContext.Order.Where(p => p.Id == orderId).FirstOrDefaultAsync();
+                if(order != null)
+                {
+                    _dataContext.Order.Remove(order);
+                    await _dataContext.SaveChangesAsync();
+                    return new ValueReturn
+                    {
+                        Message = "Xóa thành công",
+                        Status = true
+                    };
+                }
+                else
+                {
+                    return new ValueReturn
+                    {
+                        Message = "Không tìm thấy đơn hàng",
+                        Status = false
+
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn { Status = false, Message = ex.Message };
+            }
+        }
+
+        public async Task<ValueReturn> GetOrderDetailAndCustomerInfo(int orderId)
+        {
+            try
+            {
+                var order = await _dataContext.Order.Where(or => or.Id == orderId).Select(p => new
+                {
+                    OrderId = p.Id,
+                    TotalMoney = p.TotalAmount + p.FeeShip - p.Discount,
+                    Subtotal = p.TotalAmount,
+                    Discount = p.Discount,
+                    FeeShip = p.FeeShip,
+                    OrderStatus = p.OrderStatusUpdates.Select(it => new
+                    {
+                        Status = it.Status,
+                        DateUpdate = it.UpdateTime
+                    }).OrderByDescending(it => it.DateUpdate).ToList(),
+                    OrderItems = p.OrderItems.Select(it => new
+                    {
+                        ProductId = it.ProductId,
+                        Image = it.Product.Images.Select(img => img.FilePath).FirstOrDefault(),
+                        Name = it.Product.Name,
+                        Price = it.Price,
+                        Quantity = it.Quantity,
+                        Total = it.Quantity*it.Price
+                    }).ToList(),
+                    UserInfor = new
+                    {
+                        Image = p.User.Image,
+                        UserId = p.UserId,
+                        DisplayName = p.User.HoTen,
+                        TotalOrder = p.User.Orders.Count(),
+                    },
+                    CustomerInfo = new
+                    {
+                        Email = "Chưa có",
+                        Contact = p.CustomerPhone,
+                        UserNameReceive = p.CustomerName,
+                        ShippingAdress = p.ShippingAddress,
+                        Payment = p.PaymentMethod,
+                    }
+                }).FirstOrDefaultAsync();
+                if(order != null )
+                {
+                    return new ValueReturn
+                    {
+                        Data= order,
+                        Status = true
+
+                    };
+                }
+                else
+                {
+                    return new ValueReturn {
+                        Message = "Không tìm thấy order",
+                        Status= false
+                    
+                    };
+
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn { Status = false, Message = ex.Message };
+            }
+        }
+
+        public async Task<ValueReturn> UpdateStatus(int orderId)
+        {
+            try
+            {
+                var order = await _dataContext.Order.Include(p=>p.OrderStatusUpdates).FirstOrDefaultAsync(p => p.Id == orderId);
+                if (order != null)
+                {
+                    var status = order.OrderStatusUpdates.OrderByDescending(p => p.UpdateTime).FirstOrDefault();
+
+                    int currentStatusValue = (int)status.Status;
+                    int nextStatusValue = currentStatusValue + 1;
+
+                    if (nextStatusValue <= Enum.GetValues(typeof(OrderStatus)).Length - 1)
+                    {
+
+                        var orderStatus = new OrderStatusUpdate
+                        {
+                            OrderId= orderId,
+                            Status= (OrderStatus)nextStatusValue,
+                            UpdateTime = DateTime.Now,
+                        };
+                         _dataContext.OrderStatusUpdates.Add(orderStatus);
+                        await _dataContext.SaveChangesAsync();
+
+                    }
+                  
+                    return new ValueReturn
+                    {
+                        Status=true,
+                    };
+                }
+                else
+                {
+                    return new ValueReturn
+                    {
+                        Status = false,
+                        Message = "Không tìm thấy order"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn { Status = false, Message = ex.Message };
             }
         }
     }

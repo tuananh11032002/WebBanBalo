@@ -1,4 +1,6 @@
-﻿namespace WebBanBalo.Dto
+﻿using WebBanBalo.Model;
+
+namespace WebBanBalo.Dto
 {
     public class ProductDto
     {
@@ -7,7 +9,7 @@
         public string Description { get; set; }
         public float Price { get; set; }
         public float? Discount { get; set; } = 0;
-        public string? Status { get; set; } = string.Empty;
+        public StatusProduct Status { get; set; } = StatusProduct.Publish;
         public int TotalProduct { get; set; } = 0;
 
         public List<string> Image { get; set; }
@@ -18,6 +20,8 @@
         public int? CategoryId { get; set; }
 
         public string? CategoryName { get; set; }
+        public ICollection<Review> Reviews { get; set; }
+
 
     }
 }

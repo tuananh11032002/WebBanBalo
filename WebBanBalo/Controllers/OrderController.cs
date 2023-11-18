@@ -36,12 +36,31 @@ namespace WebBanBalo.Controllers
             orderDto.UserId = Int32.Parse(userIdClaim);
             return Ok(_orderRepository.AddOrder(_mapper.Map<Order>(orderDto)));
         }
-        [HttpGet("")]
+        [HttpGet()]
         //[Authorize(Roles ="admin")]
-        public IActionResult GetOrder()
+        public async Task<IActionResult> GetOrder([FromQuery] int pageIndex, [FromQuery] int pageSize, [FromQuery] string? search)
         {
-            return Ok(_orderRepository.GetOrder());
+
+
+            try
+            {
+                ValueReturn valueReturn = await _orderRepository.GetOrder(pageIndex, pageSize, search);
+                if (valueReturn.Status == true)
+                {
+                    return Ok(valueReturn.Data);
+                }
+
+                return BadRequest(valueReturn.Message);
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500,ex.Message);
+            }
         }
+        
+        
+        
         [HttpGet("orderNow")]
         [Authorize]
         public async Task<IActionResult> GetOrderNow()
@@ -60,10 +79,12 @@ namespace WebBanBalo.Controllers
                 var order = await _orderRepository.FindOrder(userIdClaim);
                 if(order == null)
                 {
-                    await _orderRepository.AddOrder(new Order
+                    var newOrder = new Order
                     {
                         UserId = int.Parse(userIdClaim)
-                    });
+
+                    };
+                    await _orderRepository.AddOrder(newOrder);
                     order = await _orderRepository.FindOrder(userIdClaim);
 
                 }
@@ -107,7 +128,10 @@ namespace WebBanBalo.Controllers
             }
             else
             {
-                var user = _userRepository.getUser(Int32.Parse(userIdClaim));
+                var user = await _userRepository.getUser(Int32.Parse(userIdClaim));
+
+
+
                 if (user == null) return NotFound("User does not exist");
                 Order order = new Order
                 {
@@ -121,6 +145,12 @@ namespace WebBanBalo.Controllers
         }
 
 
+        /// <summary>
+        /// Get Order with userId, Paging (ListOrder)
+        /// </summary>
+        /// <param name="pageSize"></param>
+        /// <param name="pageIndex"></param>
+        /// <returns></returns>
         [HttpGet("Product/Done")]
         [Authorize]
         public async Task<IActionResult> GetProductOrderDone([FromQuery] int pageSize=3, [FromQuery]  int pageIndex=1)
@@ -145,56 +175,93 @@ namespace WebBanBalo.Controllers
             }
 
         }
-        [HttpGet("Product")]
-        [Authorize]
-        public async Task<IActionResult> GetProductOrder()
+
+
+
+        [HttpGet("{orderId}")]
+        public async Task<IActionResult> GetOrderDetailAndCustomerInfo(int orderId)
         {
-          
-            var userIdClaim = User.FindFirst("Id");
-            if (userIdClaim != null)
+            try
             {
-                var userId  = userIdClaim.Value;
-                var order = await _orderRepository.FindOrderWithUserId(userId);
-                if (order == null) return NotFound();
-                return Ok(await _orderRepository.getProductOrder(order.Id));
+                ValueReturn result = await _orderRepository.GetOrderDetailAndCustomerInfo(orderId);
+                if(result.Status== true)
+                {
+                    return Ok(result.Data);
+                }
+                return BadRequest(result.Message);
+
             }
-            else
+            catch(Exception ex)
             {
-                return Unauthorized();
+                return StatusCode(500,ex.Message);
             }
-            
         }
-        [HttpDelete("")]
+       
+        
+
+
+        /// <summary>
+        /// Delete Prodduct in Order base on Userid
+        /// </summary>
+        /// <param name="productId"></param>
+        /// <returns></returns>
+        [HttpDelete]
         [Authorize]
         public async Task<IActionResult> DeleteOrderProduct([FromQuery]int productId)
         {
-            var userIdClaim = User.FindFirst("Id").Value;
-            var order = await _orderRepository.FindOrderWithUserId(userIdClaim);
-            
-            if (order != null)
+            try
             {
-                var orderItem = _orderRepository.FindOrderItem(productId, order.Id);
+                var userIdClaim = User.FindFirst("Id").Value;
+                var order = await _orderRepository.FindOrderWithUserId(userIdClaim);
 
-                return Ok(await _orderRepository.Delete(orderItem));
+                if (order != null)
+                {
+                    var orderItem = _orderRepository.FindOrderItem(productId, order.Id);
+
+                    return Ok(await _orderRepository.Delete(orderItem));
+                }
+                return BadRequest("Có lỗi gì đó mà tôi không biết. Hãy chờ đợi :)");
             }
-            return BadRequest("Có lỗi gì đó mà tôi không biết. Hãy chờ đợi :)");
+            catch (Exception ex)
+            {
+                return StatusCode(500,ex.Message);
+            }
         }
-        [HttpPost("test")]
-        public IActionResult PostStatus([FromForm] MyModel model)
+        
+        
+        /// <summary>
+        /// Xóa với orderId
+        /// </summary>
+        /// <param name="orderId"></param>
+        /// <returns></returns>
+        [HttpDelete("{orderId}")]
+        public async Task<IActionResult> DeleteWithOrderId(int orderId)
         {
-            // Xử lý model ở đây, ví dụ:
-            if (model.Status == Status.Success)
+            try
             {
-                // Xử lý khi status là Success
-                return Ok("Success");
+                ValueReturn result = await _orderRepository.DeleteWithOrderId(orderId);
+                if (result.Status == true)
+                {
+                    return Ok(result.Message);
+                }
+                else
+                {
+                    return BadRequest(result.Message);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                // Xử lý khi status là Error
-                return BadRequest("Error");
+                return StatusCode(500, ex.Message);
             }
         }
 
+
+        /// <summary>
+        /// API comfirm order
+        /// </summary>
+        /// <param name="order"></param>
+        /// <returns></returns>
+        
         [HttpPut("payments")]
         [Authorize]
         public async Task<IActionResult> UpdateOrder([FromBody] OrderUpdateModel order)
@@ -217,8 +284,28 @@ namespace WebBanBalo.Controllers
                 return StatusCode(500, ex);
             }
         }
-        
-    
+
+
+        [HttpPut("{orderId}")]
+        public async Task<IActionResult> UpdateStatusOrder(int orderId)
+        {
+            try
+            {
+                ValueReturn result = await _orderRepository.UpdateStatus(orderId);
+                if (result.Status == true)
+                {
+                    return Ok("Cập nhật thành công ");
+                }
+                else
+                {
+                    return BadRequest(result.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
     }
 
 }

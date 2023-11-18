@@ -4,14 +4,12 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Data;
 using System.IdentityModel.Tokens.Jwt;
-using System.Reflection.Metadata.Ecma335;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using WebBanBalo.Data;
-using WebBanBalo.Dto;
+using WebBanBalo.HubService;
 using WebBanBalo.Interface;
-using WebBanBalo.Migrations;
 using WebBanBalo.Model;
 using WebBanBalo.ModelOther;
 
@@ -22,8 +20,11 @@ namespace WebBanBalo.Repository
         private readonly DataContext _dataContext;
         private readonly AppSetting _appSetting;
         private readonly IWebHostEnvironment _webHostEnvironment;
-        public UserRepository(DataContext dataContext, IOptionsMonitor<AppSetting> optionsMonitor,IWebHostEnvironment webHostEnvironment)
+        private readonly IMessageService _messageService;
+        public UserRepository(DataContext dataContext, IOptionsMonitor<AppSetting> optionsMonitor,
+            IWebHostEnvironment webHostEnvironment, IMessageService messageService)
         {
+            _messageService = messageService;
             _dataContext = dataContext;
             _appSetting= optionsMonitor.CurrentValue;
             _webHostEnvironment = webHostEnvironment;
@@ -40,7 +41,7 @@ namespace WebBanBalo.Repository
                     new Claim(JwtRegisteredClaimNames.Jti,Guid.NewGuid().ToString()),
                     new Claim("UserName",user.UserName),
                     new Claim("Id", user.Id.ToString()),
-                    new Claim(ClaimTypes.Role, user.Role)
+                    new Claim(ClaimTypes.Role, user.Role.ToString())
 
                 }),
                 Expires=DateTime.UtcNow.AddDays(1),
@@ -78,9 +79,48 @@ namespace WebBanBalo.Repository
             }
         }
 
-        public Users getUser(LoginModel loginModel)
+        public async Task<ValueReturn> getUser(LoginModel loginModel)
         {
-            return _dataContext.Users.Where(p => p.UserName == loginModel.userName && p.Password == loginModel.password).FirstOrDefault();
+            try
+            {
+                Users user = await _dataContext.Users.Where(p => p.UserName == loginModel.userName && p.Password == loginModel.password).FirstOrDefaultAsync();
+
+                if (user == null)
+                {
+                    return new ValueReturn
+                    {
+                        Status = false,
+                        Message = "Có lỗi gì đó với thông tin bạn nhập vào, chúng tôi không tiến hành đăng nhập cho bạn được"
+                    };
+                }
+                else
+                {
+                    if (user.Status == UserStatus.Inactive)
+                    {
+                        return new ValueReturn
+                        {
+                            Status = false,
+                            Message = "Tài khoản của bạn đang ở trạng thái Inactive, không thể đăng nhập"
+                        };
+                    }
+                }
+                return new ValueReturn
+                {
+                    Status = true,
+                    Data = user,
+
+
+                };
+
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn
+                {
+                    Status = false,
+                    Message = ex.Message
+                };
+            }
         }
 
         public bool getUser(string userName)
@@ -95,8 +135,7 @@ namespace WebBanBalo.Repository
                 user.HoTen = user.UserName;
             }
             _dataContext.Users.Add(user);
-            _dataContext.SaveChanges(true);
-            //Lấy user tại đây: 
+            _dataContext.SaveChanges();
 
             Users addedUser = _dataContext.Users.FirstOrDefault(u => u.UserName == user.UserName);
 
@@ -116,9 +155,61 @@ namespace WebBanBalo.Repository
             return saved>0 ? true : false;
         }
 
-        public List<Users> getUsers()
+        public async Task<ValueReturn> getUsers(string? search, UserStatus? userStatus, UserRole? userRole, int pageIndex, int pageSize  )
         {
-            return _dataContext.Users.ToList();
+
+            try
+            {
+                var query = _dataContext.Users.AsQueryable();
+                if (!search.IsNullOrEmpty())
+                {
+                    var searchLower = search.ToLower();
+
+                    query = query.Where(p =>
+                        (p.UserName != null && p.UserName.ToLower().Contains(searchLower)) ||
+                        (p.HoTen != null && p.HoTen.ToLower().Contains(searchLower)) ||
+                        (p.Email != null && p.Email.ToLower().Contains(searchLower)) 
+                        
+                    );
+                }
+                if (userRole != null)
+                {
+                    query=query.Where(p=>p.Role==userRole);
+                }
+                if (userStatus != null)
+                {
+                    query = query.Where(p => p.Status == userStatus);
+                }
+                var result =await query.Skip((pageIndex-1)*pageSize).Take(pageSize).
+                    Select(p => new { 
+                        Id = p.Id ,
+                        UserName = p.UserName ,
+                        DisplayName= p.HoTen,
+                        Email =p.Email ,
+                        Role = p.Role ,
+                        Status = p.Status ,
+                        Image = p.Image ,
+                    }).ToListAsync();
+
+                return new ValueReturn
+                {
+                    Status = true,
+                    Data = new
+                    {
+                        totalUser = query.Count(),
+                        userList = result
+                    }
+                };
+
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn
+                {
+                    Status = false,
+                    Message = ex.Message
+                };
+            }
         }
 
         public async Task<Users> getUser(int userid)
@@ -134,8 +225,8 @@ namespace WebBanBalo.Repository
 
                 if (user!=null)
                 {
-                    string userRole = user.Role;
-                      if(userRole =="admin")
+                    var userRole = user.Role;
+                      if(userRole ==UserRole.Admin)
                       {
                             ICollection<Users> users = _dataContext.Users.Where(p=>p.Id!=user.Id).ToList();
                             foreach( var temp in users)
@@ -159,7 +250,7 @@ namespace WebBanBalo.Repository
                       }
                       else
                       {
-                            ICollection<Users> users = _dataContext.Users.Where(p => p.Role =="admin").ToList();
+                            ICollection<Users> users = _dataContext.Users.Where(p => p.Role ==UserRole.Admin).ToList();
                             foreach (var temp in users)
                             {
                                 int count = _dataContext.Message.Where(m => (m.SenderUserId == user.Id && m.ReceiverUserId == temp.Id) ||
@@ -191,52 +282,248 @@ namespace WebBanBalo.Repository
             }
         }
 
-        public bool DeleteUser(Users user)
+        public async Task<ValueReturn> DeleteUser(int userId)
         {
-            _dataContext.Remove(user);
-            return Save();
+            try
+            {
+                Users users = await _dataContext.Users.FirstOrDefaultAsync(p=>p.Id==userId);
+                if (users == null)
+                {
+                    return new ValueReturn
+                    {
+                        Status=false,
+                        Message= "Không tìm thấy user"
+                    };
+                }
+                else
+                {
+                    _dataContext.Users.Remove(users);
+                    await _dataContext.SaveChangesAsync();
+                    return new ValueReturn
+                    {
+                        Status = true,
+                    };
+                }
+               
+
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn {
+                    Status= false, 
+                    Message=ex.Message
+
+                };
+
+            }
         }
 
-        public async Task<bool> Update(UserInputModel user)
+        public async Task<ValueReturn> Update(UserInputModel user)
         {
             try
             {
                 var image = user.Image;
-                if (image.Length > 0)
-                {
-                    string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(image.FileName);
-                    string imagePath = Path.Combine("images", uniqueFileName);
-                    var imageFilePath = Path.Combine(_webHostEnvironment.WebRootPath, imagePath);
+                var userTemp = await _dataContext.Users.Where(p => p.Id == user.Id).FirstOrDefaultAsync();
 
-                    using (var stream = new FileStream(imageFilePath, FileMode.Create))
+                if(userTemp != null) {
+                    if (image != null)
                     {
-                        await image.CopyToAsync(stream);
-                    }
+                        string uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(image.FileName);
+                        string imagePath = Path.Combine("images", uniqueFileName);
+                        var imageFilePath = Path.Combine(_webHostEnvironment.WebRootPath, imagePath);
 
-                    var userTemp = await _dataContext.Users.Where(p => p.Id == user.Id).FirstAsync();
+                        using (var stream = new FileStream(imageFilePath, FileMode.Create))
+                        {
+                            await image.CopyToAsync(stream);
+                        }
+                        userTemp.Image = imagePath;
+                    }
                     userTemp.HoTen = user.HoTen;
                     userTemp.Email = user.Email;
                     userTemp.Phone = user.Phone;
-                    userTemp.Gender = user.Gender;
-                    userTemp.Image = imagePath;
+                    if (user.Gender != null)
+                    {
+                        userTemp.Gender = user.Gender.Value;
+
+                    }
+                    if (user.UserStatus != null)
+                    {
+                        userTemp.Status = user.UserStatus.Value;
+
+                    }
+                    await _dataContext.SaveChangesAsync();
+                    if (userTemp.Status == UserStatus.Inactive)
+                    {
+                        await _messageService.LogoutNow(user.Id);
+                    }
+                    return new ValueReturn
+                    {
+                        Status = true,
+                        Message = "Cập nhật thành công"
+                    };
                 }
                 else
                 {
-                    var userTemp = await _dataContext.Users.FirstAsync(p => p.Id == user.Id);
-                    userTemp.HoTen = user.HoTen;
-                    userTemp.Email = user.Email;
-                    userTemp.Phone = user.Phone;
-                    userTemp.Gender = user.Gender;
+                    return new ValueReturn
+                    {
+                        Status = false,
+                        Message = "User không tồn tại"
+                    };
                 }
-
-                await _dataContext.SaveChangesAsync();
-                return true;
+               
             }
             catch (Exception ex)
             {
-                // Log lỗi hoặc trả về thông báo lỗi cụ thể
-                // Log.Error(ex, "Lỗi xử lý cập nhật người dùng");
-                return false;
+              
+                return new ValueReturn
+                {
+                    Status = false,
+                    Message= ex.Message
+
+                };
+            }
+        }
+
+        public async Task<ValueReturn> getCustomerWithCriterial(string? search, int pageIndex, int pageSize)
+        {
+            try
+            {
+
+                var customer = _dataContext.Users
+                        .Include(u => u.Orders)
+                        .AsQueryable();
+
+                if (!string.IsNullOrEmpty(search))
+                {
+                    customer = customer.Where(u => u.HoTen.Contains(search) || u.UserName.Contains(search));
+                }
+
+                var listCustomer = await customer
+                    .Skip((pageIndex - 1) * pageSize)
+                    .Take(pageSize)
+                    .AsQueryable()
+                    .Select(p => new
+                    {
+                        Id = p.Id,
+                        HoTen = p.HoTen,
+                        Country = "Việt Nam",
+                        Image = p.Image,
+                        TotalSpent = p.Orders.Select(or => or.TotalAmount + or.FeeShip - or.Discount).Sum(),
+                        Email = p.Email.IsNullOrEmpty() ? "Chưa có ": p.Email,
+                        Order = p.Orders.Count
+                    })
+                    .ToListAsync();
+              
+
+
+
+                int totalCustomer = customer.Count();
+                var result = new
+                {
+                    Customer = listCustomer,
+                    TotalCustomer = totalCustomer
+
+                };
+                if (customer != null)
+                {
+                    return new ValueReturn { Status = true, Data = result };
+                }
+                else  return new ValueReturn { Status = false, Message="Kiểm tra lại pageIndex và pageSize"};
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn {Status=false, Message= ex.Message };
+
+            }
+        }
+
+        public async Task<ValueReturn> getCustomerWithId(int id)
+        {
+            try
+            {
+                var data = await _dataContext.Users.Where(p => p.Id == id).Select(pc => new
+                {
+                    Image= pc.Image,
+                    NumberOrder= pc.Orders.Where(p=>p.Done==true).Count(),
+                    TotalSpent = pc.Orders.Select(or=>or.TotalAmount+ or.FeeShip-or.Discount).Sum(),
+                    UserName= pc.UserName,
+                    DisplayName = pc.HoTen,
+                    Id= pc.Id,
+                    Status = pc.Status,
+                    Contact = pc.Phone.IsNullOrEmpty() ? "Chưa có" :pc.Phone,
+                    Email= pc.Email.IsNullOrEmpty()?"Chưa có": pc.Email,
+                    Role= pc.Role,
+                    OrderList = pc.Orders.Where(p=>p.Done==true).Select(or=>new
+                    {
+                        Id= or.Id,
+                        Date= or.FinishedAt,
+                        Status= or.OrderStatusUpdates.OrderByDescending(pc => pc.UpdateTime).FirstOrDefault(),
+                        Spent =  or.FeeShip+or.TotalAmount-or.Discount
+                    }),
+
+                }).FirstOrDefaultAsync();
+                if(data == null)
+                {
+                    return new ValueReturn { Status = false, Message="Có vẻ Id bạn cung cấp không thuộc về sản phẩm nào hết" };
+
+
+                }
+
+                return new ValueReturn { Status= true, Data= data };
+
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn
+                {
+                    Message = ex.Message,
+                    Status = false
+                };
+            }
+        }
+
+        public async Task<ValueReturn> Add_User_Admin(UserCreateInputAdmin userInput)
+        {
+            try
+            {
+               
+                var userExist=await _dataContext.Users.Where(p=>p.UserName==userInput.UserName).FirstOrDefaultAsync();
+                if (userExist == null)
+                {
+                    Users users = new Users();
+                    users.Role = userInput.UserRole;
+                    users.UserName = userInput.UserName;
+                    users.Email = userInput.Email;
+                    users.Password = userInput.Password;
+                    if (!userInput.hoTen.IsNullOrEmpty())
+                    {
+                        users.HoTen = userInput.hoTen;
+                    }
+                    else
+                    {
+                        users.HoTen = userInput.UserName;
+                    }
+                    _dataContext.Users.Add(users);
+                    await _dataContext.SaveChangesAsync();
+                    return new ValueReturn
+                    {
+                        Status = true,
+
+                    };
+                }
+                else
+                {
+                    return new ValueReturn
+                    {
+                        Status = false,
+                        Message = "UserName đã tồn tại "
+                    };
+                }
+                
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn { Status = false, Data = ex.Message };
             }
         }
     }

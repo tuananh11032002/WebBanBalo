@@ -52,9 +52,23 @@ namespace WebBanBalo.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetProductById(int id )
         {
-            var result = await _productRepository.GetProductByIdAsync(id);
-           
-            return Ok(_mapper.Map<ProductDto>(result));
+            try
+            {
+                ValueReturn result = await _productRepository.GetProductById(id);
+                if (result.Status == true)
+                {
+                    return Ok(result.Data);
+
+                }
+                else
+                {
+                    return BadRequest(result.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500,ex.Message);
+            }
         }
 
         [HttpGet]
@@ -63,14 +77,14 @@ namespace WebBanBalo.Controllers
              [FromQuery] string? orderBy,
              [FromQuery] int? categoryId,
              [FromQuery] string? stock,
-              [FromQuery] string? status,
+             [FromQuery] StatusProduct? status,
 
              [FromQuery] int? page = 1,
              [FromQuery] int? pageSize = 10
 
             )
         {
-            var products = await _productRepository.GetProductsAsync(search, orderBy , stock??"", status ?? "", page ?? 1, pageSize?? 10,categoryId??-1);
+            var products = await _productRepository.GetProductsAsync(search, orderBy , stock??"", status, page ?? 1, pageSize?? 10,categoryId??-1);
             return products;
         }
         [HttpPost("create-product-with-images")]
@@ -121,6 +135,10 @@ namespace WebBanBalo.Controllers
             existingProduct.Description = productInput.Description;
             existingProduct.Price = productInput.Price;
             existingProduct.CategoryId = productInput.CategoryId;
+            if (productInput.status != null)
+            {
+                existingProduct.Status =(StatusProduct) productInput.status;
+            }
            if (productInput.SoLuong < 0)
             {
                 existingProduct.TotalProduct += existingProduct.Soluong + productInput.SoLuong < 0 ? -existingProduct.Soluong : productInput.SoLuong;

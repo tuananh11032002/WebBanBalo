@@ -69,7 +69,9 @@ namespace WebBanBalo.Repository
                         Image = p.Images.Select(i => i.FilePath).ToList(),
                         Stock = p.Stock,
                         Price = p.Price,
-                        Soluong = p.Soluong
+                        Soluong = p.Soluong,
+
+
                     }).ToList(),
                 }); ;
             }
@@ -132,7 +134,7 @@ namespace WebBanBalo.Repository
 
 
 
-        public async Task<object> GetProductsAsync(string search, string orderBy, string stock,string status, int page  , int pageSize , int categoryId)
+        public async Task<object> GetProductsAsync(string search, string orderBy, string stock,StatusProduct? status, int page  , int pageSize , int categoryId)
         {
             IQueryable<Product> query = _dataContext.Product.Include(p => p.Images).Include(i => i.Categories);
             if (!string.IsNullOrWhiteSpace(stock))
@@ -168,9 +170,9 @@ namespace WebBanBalo.Repository
                         break;
                 }
             }
-            if (!string.IsNullOrWhiteSpace(status))
+            if (status!=null)
             {           
-                query = query.Where(p=>p.Status.ToLower()==status.ToLower());                    
+                query = query.Where(p=>p.Status==status);                    
             }
             if (categoryId != -1)
             {
@@ -219,8 +221,15 @@ namespace WebBanBalo.Repository
 
         public async Task<Product> GetProductByIdAsync(int productId)
         {
-           
-            return  await _dataContext.Product.Where(px => px.Id == productId).Include(p => p.Images).FirstOrDefaultAsync();
+            try
+            {
+                return await _dataContext.Product.Where(px => px.Id == productId).Include(p => p.Images).Include(p=>p.Reviews).FirstOrDefaultAsync();
+
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
         }
 
 
@@ -415,6 +424,55 @@ namespace WebBanBalo.Repository
             await _dataContext.SaveChangesAsync();
 
             return true ;
+        }
+
+        public async Task<ValueReturn> GetProductById(int id)
+        {
+            try
+            {
+                var product = await _dataContext.Product.FindAsync(id);
+                if (product == null)
+                {
+                    return new ValueReturn
+                    {
+                        Status = false,
+                        Message = "Không tìm thấy sản phẩm"
+                    };
+                }
+                else
+                {
+
+                    return new ValueReturn
+                    {
+                        Status = true,
+                        Data = await _dataContext.Product.Where(p => p.Id == id).Select(p => new
+                        {
+                            Id=p.Id,
+                            Name= p.Name,
+                            Price= p.Price,
+                            Image = p.Images.Select(pc=>pc.FilePath).ToList(),
+                            Description = p.Description,
+                            Reviews = p.Reviews.Select(re=>new
+                            {
+                                Id=re.Id,
+                                Rating = re.Rating,
+                                DatePosted = re.DatePosted,
+                                Comment = re.Comment,
+                                UserName= re.User.UserName,
+                            }).ToList()
+
+                        }).FirstOrDefaultAsync()
+                    };
+                }
+                
+            
+            
+            }
+            catch (Exception ex) 
+            {
+                return new ValueReturn { Status = false , Message=ex.Message };
+
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using WebBanBalo.Dto;
 using WebBanBalo.Model;
+using WebBanBalo.ModelOther;
 
 namespace WebBanBalo.Helper
 {
@@ -17,8 +18,9 @@ namespace WebBanBalo.Helper
             CreateMap<CategoryDto, Category>();
             CreateMap<Users, UsersDto>();
             CreateMap<UsersDto, Users>();
-            CreateMap<Color, ColorDto>();
-            CreateMap<ColorDto, Color>();
+            CreateMap<Users, UserCreateInput>();
+            CreateMap<UserCreateInput, Users>();
+        
         }
     }
 }

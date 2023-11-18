@@ -6,17 +6,21 @@ using System.Security.Claims;
 using WebBanBalo.Data;
 using WebBanBalo.Model;
 using Newtonsoft.Json;
+using WebBanBalo.Interface;
 
 namespace WebBanBalo.HubService
 {
     [Authorize]
-    public class MessageService: Hub
+    public class MessageService: Hub, IMessageService
     {
         private static Dictionary<string, List<string>> _connection = new Dictionary<string, List<string>>();
         private readonly DataContext _dbContext;
-        public MessageService(DataContext dataContext)
+        private readonly IHubContext<MessageService> _hubContext;
+
+        public MessageService(DataContext dataContext, IHubContext<MessageService> hubContext)
         {
             _dbContext = dataContext;
+            _hubContext = hubContext;
 
 
         }
@@ -30,20 +34,18 @@ namespace WebBanBalo.HubService
 
                 if (!string.IsNullOrEmpty(userId))
                 {
-                    if (!_connection.ContainsKey(userId))
+                    lock (_connection)
                     {
-                        _connection[userId] = new List<string>();
+                        if (!_connection.ContainsKey(userId))
+                        {
+                            _connection[userId] = new List<string>();
+                        }
+
+                        _connection[userId].Add(Context.ConnectionId);
                     }
-
-                    _connection[userId].Add(Context.ConnectionId);
+                    
                 }
-
-                
-
             }
-
-            
-
             return base.OnConnectedAsync();
         }
 
@@ -78,7 +80,6 @@ namespace WebBanBalo.HubService
 
                 if (_connection.TryGetValue(receiverUserId.ToString(), out List<string> connectionIds))
                 {
-                    // Gửi tin nhắn đến tất cả các kết nối của người nhận
                     foreach (var connectionId in connectionIds)
                     {
                         await Clients.Client(connectionId).SendAsync("ReceiveMessage",  JsonConvert.SerializeObject(messageSQL));
@@ -122,7 +123,16 @@ namespace WebBanBalo.HubService
             }
         }
 
-
+        public async Task LogoutNow(int userId)
+        {
+            if (_connection.TryGetValue(userId.ToString(), out List<string> connectionIds))
+            {
+                foreach (var connectionId in connectionIds)
+                {
+                    await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveLogout");
+                }
+            }
+        }
     }
     
         

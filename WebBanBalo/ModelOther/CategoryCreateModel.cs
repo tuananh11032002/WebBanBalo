@@ -11,7 +11,7 @@ namespace WebBanBalo.ModelOther
         [Required]
         public IFormFile ImageReplace { set; get; }
 
-        public string Title { set; get; }
+        public string? Title { set; get; }
 
 
     }

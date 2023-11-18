@@ -31,6 +31,8 @@ namespace WebBanBalo.Controllers
             _mapper = autoMapper;
             _appSetting= monitor.CurrentValue;
         }
+        
+        
         /// <summary>
         /// API for User Login
         /// </summary>
@@ -41,50 +43,160 @@ namespace WebBanBalo.Controllers
         /// <returns></returns>
         [HttpPost("Login")]
         
-        public IActionResult Validate([FromBody] LoginModel loginModel)
+        public async Task<IActionResult> Validate([FromBody] LoginModel loginModel)
         {
-            if(loginModel.userName.IsNullOrEmpty()||loginModel.password.IsNullOrEmpty()) {
-                return BadRequest("Bạn đang để trống 1 trường quan trọng, kiểm tra lại username và password");
+            try
+            {
+                if (loginModel.userName.IsNullOrEmpty() || loginModel.password.IsNullOrEmpty())
+                {
+                    return BadRequest("Bạn đang để trống 1 trường quan trọng, kiểm tra lại username và password");
+                }
+
+                ValueReturn user = await _userRepository.getUser(loginModel);
+
+                if (user.Status == false)
+                {
+                    return BadRequest(user.Message);
+                }
+                else
+                {
+                    Users userTemp = (Users)user.Data;
+                bool resultCheck = _userRepository.IsHasFirstMessage(userTemp.Id);
+                    return Ok(
+                        new ResponseApiToken { UserId = userTemp.Id.ToString(), userName = loginModel.userName, Role = userTemp.Role, 
+                            Success = true, Message = "Token Created", token = _userRepository.GenerateToken(userTemp), Image = userTemp.Image, DisplayName = userTemp.HoTen });
+                }
+            }
+            catch (Exception ex) 
+            {
+                return StatusCode(500,ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Api get all user
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet]
+        public async Task<IActionResult> GetUsers([FromQuery] UserStatus? userStatus, [FromQuery] UserRole? userRole, [FromQuery] string? search, [FromQuery] int pageIndex=1, [FromQuery] int pageSize=10)
+        {
+            try
+            {
+                ValueReturn result = await _userRepository.getUsers(search,userStatus,userRole,pageIndex,pageSize);
+                if (result.Status == false)
+                {
+                    return BadRequest(result.Message);
+                }
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500,ex.Message);
             }
             
-            var user = _userRepository.getUser(loginModel);
-            if (user == null)
-            {
-                return NotFound(
-                  
-                        "User not found"
-
-                        
-                    );
-            }
-            bool resultCheck=_userRepository.IsHasFirstMessage(user.Id);
-            return Ok(
-                new ResponseApiToken {UserId=user.Id.ToString(),userName= loginModel.userName,Role=user.Role, Success = true, Message = "Token Created", token = _userRepository.GenerateToken(user),Image= user.Image,DisplayName= user.HoTen }
-
-                );
-        }
-
-        [HttpGet]
-        public IActionResult GetUsers()
-        {
-            return Ok(_userRepository.getUsers());
-        }
+        }      
+        /// <summary>
+        /// Get user width userId for customer
+        /// </summary>
+        /// <param name="userid"></param>
+        /// <returns></returns>
         [HttpGet("{userid}")]
         public async Task <IActionResult> GetUser( int userid)
         {
-            var result = await _userRepository.getUser(userid);
-            return Ok(_mapper.Map<UsersDto>(result));
+            try
+            {
+
+                var result = await _userRepository.getUser(userid);
+                return Ok(_mapper.Map<UsersDto>(result));
+            }
+            catch (Exception ex) 
+            {
+                return BadRequest(ex.Message);
+            }
+           
+        }
+
+        /// <summary>
+        /// Get customer all
+        /// </summary>
+        /// <param name="search"></param>
+        /// <param name="pageIndex"></param>
+        /// <param name="pageSize"></param>
+        /// <returns></returns>
+        
+        [HttpGet("get-customer-infor")]
+        public async Task<IActionResult> GetCustomerAll([FromQuery] string? search, [FromQuery] int pageIndex= 1, [FromQuery] int pageSize=10 )
+        {
+            try
+            {
+                ValueReturn valueReturn = await _userRepository.getCustomerWithCriterial(search, pageIndex, pageSize);
+
+                if (valueReturn.Status == true)
+                {
+                    return Ok(valueReturn.Data);
+
+                }
+                else { 
+                        return BadRequest(valueReturn.Message);
+                }
+
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500,ex.Message);
+            }
         }
 
 
+        /// <summary>
+        /// Get Customer  With Id
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpGet("customer/{id}")]
+        public async Task<IActionResult> GetCustomerWithId(int id)
+        {
+
+            try
+            {
+                ValueReturn result = await _userRepository.getCustomerWithId(id); 
+                if (result.Status == false ) {
+                    return BadRequest(result.Message);
+                }
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+
+
+        }
+
+
+        /// <summary>
+        /// Api Add User
+        /// </summary>
+        /// <param name="users"></param>
+        /// <returns></returns>
         [HttpPost("AddUser")]
-        public IActionResult AddUser([FromBody] UsersDto users)
+        public IActionResult AddUser([FromBody] UserCreateInput users)
         {
             try
             {
                 if (users == null) return BadRequest("Hãy nhập thông tin đầy đủ");
                 if (_userRepository.getUser(users.UserName)) return BadRequest("User da ton tai");
-                var user = _mapper.Map<Users>(users);
+                var user = new Users()
+                {
+                    UserName = users.UserName,
+                    Password = users.Password,
+
+                };
+                if (users.Gender != null)
+                {
+                    user.Gender = users.Gender;
+                }
                 return Ok(_userRepository.addUser(user));
             }
             catch (Exception ex)
@@ -93,6 +205,35 @@ namespace WebBanBalo.Controllers
             }
 
         }
+
+
+
+        [HttpPost("add-user-for-admin")]
+        public async Task<IActionResult> Add_User_Admin(UserCreateInputAdmin userInput)
+        {
+            try
+            {
+                ValueReturn result = await _userRepository.Add_User_Admin(userInput);
+                if (result.Status == false )
+                {
+                    return BadRequest(result.Message);
+                }
+                else
+                {
+                    return Ok("Thêm thành công");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Api renew token
+        /// </summary>
+        /// <param name="model"></param>
+        /// <returns></returns>
         [HttpPost("RenewToken")]
         public IActionResult RenewToken(TokenModel model)
         {
@@ -198,29 +339,84 @@ namespace WebBanBalo.Controllers
             return dateTimeInterval;
         }
 
+
+        /// <summary>
+        /// Api Delete User with userId
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <returns></returns>
         [HttpDelete("{userId}")]
         public async Task <IActionResult> DeleteUser(int userId)
         {
-            var user = await _userRepository.getUser(userId);
-            if (user == null)
+            try
             {
-                return NotFound("User không tồn tại, không thể xóa  ");
+                ValueReturn result = await _userRepository.DeleteUser(userId);
+                if (result.Status == true)
+                {
+                    return Ok("Xóa thành công");
+                }
+                else
+                {
+                    return BadRequest(result.Message);
+                }
+
             }
-            return Ok(_userRepository.DeleteUser(user));
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+            
 
 
         }
+        /// <summary>
+        /// api edit user
+        /// </summary>
+        /// <param name="user"></param>
+        /// <returns></returns>
 
         [HttpPut]
         public async Task<IActionResult> UpdateUser ([FromForm] UserInputModel user)
         {
             try
+
             {
-                //var userId = Int32.Parse(User.FindFirst("Id").Value);
-                //if (userId != userDto.Id) return BadRequest("Có vẻ nhầm lần gì đó rồi");
-                return Ok(await _userRepository.Update(user));
+                ValueReturn result = await _userRepository.Update(user);
+                if (result.Status == true)
+                {
+                    return Ok("Cập nhật thành công");
+                }
+                else
+                {
+                    return BadRequest("Cập nhật thất bại. Có lỗi xảy ra ");
+                }
+
+                
             }
             catch (Exception ex) 
+            {
+                return StatusCode(500, ex);
+            }
+        }
+
+
+
+        [HttpPut("for-admin")]
+        public async Task<IActionResult> UpdateUserforAdmin([FromBody] UserInputModel user)
+        {
+            try
+            {
+                ValueReturn result = await _userRepository.Update(user);
+                if (result.Status == true)
+                {
+                    return Ok("Cập nhật thành công");
+
+                }
+                else return BadRequest(result.Message);
+
+
+            }
+            catch (Exception ex)
             {
                 return StatusCode(500, ex);
             }

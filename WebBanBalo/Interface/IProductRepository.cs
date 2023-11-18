@@ -8,7 +8,7 @@ namespace WebBanBalo.Interface
     {
         bool UpdateProduct(Product Product);
         bool ProductExists(int productId);
-        Task<object> GetProductsAsync(string search, string orderBy ,string stock, string status,int page, int pageSize, int categoryId);
+        Task<object> GetProductsAsync(string search, string orderBy ,string stock, StatusProduct? status,int page, int pageSize, int categoryId);
         Task<IEnumerable<object>> GetFilteredProducts(int categoryId, string search , string orderBy, int pageSize, int pageIndex);
         Task<Product> CreateProductWithImage(ProductInputModel productInput);
         bool DeleteProduct(Product Product);
@@ -16,5 +16,6 @@ namespace WebBanBalo.Interface
         Task UpdateProductAsync(Product product);
         Task UpdateProductImages(Product product, ProductUpdateModel productInput);
         Task<bool> ChangeStock(bool stock, Product product);
+        Task<ValueReturn> GetProductById(int id);
     }
 }

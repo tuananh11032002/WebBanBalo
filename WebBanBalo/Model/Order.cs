@@ -1,9 +1,24 @@
-﻿using WebBanBalo.ModelOther;
+﻿using System.ComponentModel.DataAnnotations;
+using WebBanBalo.ModelOther;
 
 namespace WebBanBalo.Model
 {
-    
-   
+
+    public enum OrderStatus {
+
+        NotPlaced,
+        ReadytoPickup,
+        Dispatched,
+        OutforDelivery,
+        Delivered,
+
+    }
+    public enum PaymentStatus
+    {
+        Pending, Paid, Failed, Cancelled
+    }
+
+
     public class Order
     {
         public int Id { get; set; }
@@ -15,6 +30,9 @@ namespace WebBanBalo.Model
         {
             get { return TotalAmount + FeeShip - Discount; }
         }
+        [MaxLength(11)]
+        public string CustomerPhone { set; get; }
+        public string CustomerName { set; get; }
         public bool Done { get; set; }
         public DateTime? FinishedAt { get; set; }
 
@@ -24,10 +42,13 @@ namespace WebBanBalo.Model
         public string BillingAddress { get; set; }
 
         public string? OrderNote { get; set; }
+        public PaymentStatus PaymentStatus { get; set; }
+
+        public List<OrderStatusUpdate> OrderStatusUpdates { get; set; }
+
 
         public PaymentMethod PaymentMethod { get; set; }
 
-        public string OrderStatus { get; set; }
         public ICollection<OrderItem> OrderItems { get; set; }
         public Order()
         {
@@ -37,12 +58,15 @@ namespace WebBanBalo.Model
             Discount = 0;
             Done = false;
             CreatedAt = DateTime.Now;
-            
+            CustomerName = string.Empty;
             ShippingAddress = "";
             BillingAddress = "";
             OrderNote = null;
             PaymentMethod = PaymentMethod.COD;
-            OrderStatus = "";
+            OrderStatusUpdates = new List<OrderStatusUpdate>();
+            CustomerPhone = string.Empty;
+            PaymentStatus = PaymentStatus.Pending;
+
         }
     }
 

@@ -22,5 +22,7 @@ namespace WebBanBalo.ModelOther
 
        [EnumDataType(typeof(PaymentMethod))]
         public PaymentMethod PaymentMethod { get; set; }
+        public string CustomerName { get; set; }    
+        public string CustomerPhone { set;get; }
     }
 }

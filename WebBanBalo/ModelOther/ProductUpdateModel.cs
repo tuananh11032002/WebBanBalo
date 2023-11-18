@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using WebBanBalo.Model;
 
 namespace WebBanBalo.ModelOther
 {
@@ -15,8 +16,7 @@ namespace WebBanBalo.ModelOther
         
         public List<IFormFile>? ImageFiles { get; set; } =new List<IFormFile>();
         public List<string> linkImage { get; set; }= new List<string>();
-
-        [Required]
+        public StatusProduct? status { get; set; } 
         public int SoLuong { get; set; } = 0;
     }
 }

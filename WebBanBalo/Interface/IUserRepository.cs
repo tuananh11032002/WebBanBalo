@@ -8,12 +8,15 @@ namespace WebBanBalo.Interface
     {
         bool addUser(Users user);
         TokenModel GenerateToken(Users user);
-        Users getUser(LoginModel loginModel);
+        Task<ValueReturn> getUser(LoginModel loginModel);
         bool getUser(string userName);
-        List<Users> getUsers();
+        Task <ValueReturn> getUsers(string? search,UserStatus? userStatus,UserRole? userRole, int pageIndex, int pageSize);
         Task<Users> getUser(int userid);
         bool IsHasFirstMessage(int id);
-        bool DeleteUser(Users user);
-        Task<bool> Update(UserInputModel user);
+        Task<ValueReturn> DeleteUser(int userId);
+        Task<ValueReturn> Update(UserInputModel user);
+        Task<ValueReturn> getCustomerWithCriterial(string? search, int pageIndex, int pageSize);
+        Task<ValueReturn> getCustomerWithId(int id);
+        Task<ValueReturn> Add_User_Admin(UserCreateInputAdmin userInput);
     }
 }

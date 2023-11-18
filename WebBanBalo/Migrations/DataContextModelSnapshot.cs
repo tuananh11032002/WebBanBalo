@@ -51,42 +51,6 @@ namespace WebBanBalo.Migrations
                     b.ToTable("Category");
                 });
 
-            modelBuilder.Entity("WebBanBalo.Model.Color", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Color");
-                });
-
-            modelBuilder.Entity("WebBanBalo.Model.ColorProduct", b =>
-                {
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ColorId")
-                        .HasColumnType("int");
-
-                    b.HasKey("ProductId", "ColorId");
-
-                    b.HasIndex("ColorId");
-
-                    b.ToTable("ColorProducts");
-                });
-
             modelBuilder.Entity("WebBanBalo.Model.Message", b =>
                 {
                     b.Property<int>("Id")
@@ -158,6 +122,15 @@ namespace WebBanBalo.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CustomerPhone")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)");
+
                     b.Property<float>("Discount")
                         .HasColumnType("real");
 
@@ -175,11 +148,10 @@ namespace WebBanBalo.Migrations
                     b.Property<string>("OrderNote")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("OrderStatus")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int>("PaymentMethod")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PaymentStatus")
                         .HasColumnType("int");
 
                     b.Property<string>("ShippingAddress")
@@ -212,6 +184,9 @@ namespace WebBanBalo.Migrations
                     b.Property<float>("Discount")
                         .HasColumnType("real");
 
+                    b.Property<bool>("IsReview")
+                        .HasColumnType("bit");
+
                     b.Property<float>("Price")
                         .HasColumnType("real");
 
@@ -223,6 +198,30 @@ namespace WebBanBalo.Migrations
                     b.HasIndex("OrderId");
 
                     b.ToTable("OrderItem");
+                });
+
+            modelBuilder.Entity("WebBanBalo.Model.OrderStatusUpdate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdateTime")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("OrderStatusUpdates");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.Product", b =>
@@ -255,9 +254,6 @@ namespace WebBanBalo.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("PaymentStatus")
-                        .HasColumnType("int");
-
                     b.Property<float>("Price")
                         .HasColumnType("real");
 
@@ -266,11 +262,10 @@ namespace WebBanBalo.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
-                    b.Property<string>("Status")
-                        .IsRequired()
+                    b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
-                        .HasDefaultValue("publish");
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<bool>("Stock")
                         .HasColumnType("bit");
@@ -343,6 +338,43 @@ namespace WebBanBalo.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
+            modelBuilder.Entity("WebBanBalo.Model.Review", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("DatePosted")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Review");
+                });
+
             modelBuilder.Entity("WebBanBalo.Model.Users", b =>
                 {
                     b.Property<int>("Id")
@@ -361,8 +393,8 @@ namespace WebBanBalo.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Gender")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("Gender")
+                        .HasColumnType("int");
 
                     b.Property<string>("HoTen")
                         .IsRequired()
@@ -379,11 +411,8 @@ namespace WebBanBalo.Migrations
                     b.Property<string>("Phone")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
-                        .HasDefaultValue("user");
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -395,25 +424,6 @@ namespace WebBanBalo.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("WebBanBalo.Model.ColorProduct", b =>
-                {
-                    b.HasOne("WebBanBalo.Model.Color", "Color")
-                        .WithMany("Products")
-                        .HasForeignKey("ColorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WebBanBalo.Model.Product", "Product")
-                        .WithMany("Colors")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Color");
-
-                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.Message", b =>
@@ -475,6 +485,17 @@ namespace WebBanBalo.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("WebBanBalo.Model.OrderStatusUpdate", b =>
+                {
+                    b.HasOne("WebBanBalo.Model.Order", "Order")
+                        .WithMany("OrderStatusUpdates")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("WebBanBalo.Model.Product", b =>
                 {
                     b.HasOne("WebBanBalo.Model.Category", "Categories")
@@ -508,12 +529,25 @@ namespace WebBanBalo.Migrations
                     b.Navigation("NguoiDung");
                 });
 
-            modelBuilder.Entity("WebBanBalo.Model.Category", b =>
+            modelBuilder.Entity("WebBanBalo.Model.Review", b =>
                 {
-                    b.Navigation("Products");
+                    b.HasOne("WebBanBalo.Model.Product", "Product")
+                        .WithMany("Reviews")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebBanBalo.Model.Users", "User")
+                        .WithMany("Reviews")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Product");
+
+                    b.Navigation("User");
                 });
 
-            modelBuilder.Entity("WebBanBalo.Model.Color", b =>
+            modelBuilder.Entity("WebBanBalo.Model.Category", b =>
                 {
                     b.Navigation("Products");
                 });
@@ -521,15 +555,17 @@ namespace WebBanBalo.Migrations
             modelBuilder.Entity("WebBanBalo.Model.Order", b =>
                 {
                     b.Navigation("OrderItems");
+
+                    b.Navigation("OrderStatusUpdates");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.Product", b =>
                 {
-                    b.Navigation("Colors");
-
                     b.Navigation("Images");
 
                     b.Navigation("OrderItems");
+
+                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.Users", b =>
@@ -539,6 +575,8 @@ namespace WebBanBalo.Migrations
                     b.Navigation("Orders");
 
                     b.Navigation("ReceivedMessages");
+
+                    b.Navigation("Reviews");
 
                     b.Navigation("SentMessages");
                 });
