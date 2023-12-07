@@ -62,6 +62,7 @@ namespace WebBanBalo.Controllers
                     {
                         UserId = user.Id,
                         UserName = user.UserName,
+                        Image= user.Image,
                         LastMessageContent = chatUser.LastMessage.Content,
                         LastMessageSentTimeString = chatUser.LastMessage.Timestamp.ToString("HH:mm:ss dd/MM/yyyy")
                     };

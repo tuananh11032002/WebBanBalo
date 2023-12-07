@@ -31,9 +31,9 @@ namespace WebBanBalo.Controllers
         [HttpGet("admin")]
         [ProducesResponseType(200, Type = typeof(IEnumerable<CategoryDto>))]
 
-        public IActionResult GetForAdmin()
+        public IActionResult GetForAdmin([FromQuery] string? search)
         {
-            return Ok(_categoryRepository.GetCategoriesForAdmin());
+            return Ok(_categoryRepository.GetCategoriesForAdmin(search));
         }
 
 

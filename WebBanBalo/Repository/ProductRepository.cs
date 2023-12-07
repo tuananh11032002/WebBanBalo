@@ -25,76 +25,87 @@ namespace WebBanBalo.Repository
         }
 
 
-        public async Task<IEnumerable<object>> GetFilteredProducts(int categoryId, string search, string orderBy, int pageSize, int pageIndex)
+        public async Task<ValueReturn> GetFilteredProducts(int categoryId, string search, string orderBy, int pageSize, int pageIndex)
         {
-            var categories = await  _dataContext.Category
-                .Where(c => categoryId == -1 || c.Id == categoryId)
-                .Include(c => c.Products).ThenInclude(im=>im.Images).ToListAsync();
-
-            var result = new List<dynamic>();
-
-            foreach (var category in categories)
+            try
             {
-                var categoryProducts = category.Products.Where(p=>p.Stock==true);
+                IQueryable<Category> query = _dataContext.Category.AsQueryable();
 
-                if (!string.IsNullOrEmpty(search))
+                if (categoryId != -1)
                 {
-                    categoryProducts = categoryProducts
-                        .Where(p => p.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
-                        .ToList();
+                    query = query.Where(p => p.Id == categoryId);
                 }
-
-                if (!string.IsNullOrEmpty(orderBy))
+                var category = query.Select(p=>p.Id).ToList();
+                List<dynamic> result = new List<dynamic>();
+                foreach(var item in category)
                 {
-                    if (orderBy == "insc")
+                    var query2 = _dataContext.Category.Where(p => p.Id == item).AsQueryable();
+                    var product = _dataContext.Product.Where(p=>p.CategoryId== item && p.Stock==true).AsQueryable();
+
+                    if (!orderBy.IsNullOrEmpty())
                     {
-                        categoryProducts = categoryProducts.Where(p => p.Stock).OrderBy(o=>o.Price).ToList();
+                        switch(orderBy)
+                        {
+                            case "priceasc":
+                                {
+                                    product = product.OrderBy(p => p.Price);
+                                    break;
+                                }
+                            case "pricedesc":
+                                {
+                                    product = product.OrderByDescending(p => p.Price);
+                                    break;
+                                }
+                            case "popularity":
+                                {
+                                    product = product.OrderByDescending(p => p.Price);
+                                    break;
+                                }
+                        }
                     }
-                    else if (orderBy == "desc")
-                    {
-                        categoryProducts = categoryProducts.Where(p => p.Stock).OrderByDescending(o=>o.Price).ToList();
-                    }
+                    var resultTemps = await query2.Select(
+                        p => new
+                        {
+                            Id = p.Id,
+                            Name = p.Name,
+                            Products = product.Skip((pageIndex - 1) * pageSize).Take(pageSize).Select(t => new
+                            {
+                                Id = t.Id,
+                                Name = t.Name,
+                                Description = t.Description,
+                                CategoryId = item,
+                                Image = t.Images.Select(im => im.FilePath).ToArray(),
+                                Price = t.Price,
+                                PriceNow = t.Price - t.Discount,
+
+                                Discount = t.Discount,
+                                SoLuong = t.Soluong,
+                                RatingPoint = t.Reviews.Average(pc => pc.Rating) != null ? t.Reviews.Average(pc => pc.Rating) : 0,
+                                TotalRating= t.Reviews.Count(),
+
+                            }).ToList(),
+                            TotalProduct=p.Products.Count(),
+                        }
+
+                        ).FirstOrDefaultAsync();
+                    result.Add(resultTemps);
+
                 }
-
-                result.Add(new
+                return new ValueReturn
                 {
-                    categoryName = category.Name,
-                    products = categoryProducts.Select(p => new ProductDto
-                    {
-                        Id = p.Id,
-                        Name=p.Name,
-                        Description = p.Description,
-                        CategoryId = category.Id,
-                        CreatedAt = p.CreatedAt,
-                        Image = p.Images.Select(i => i.FilePath).ToList(),
-                        Stock = p.Stock,
-                        Price = p.Price,
-                        Soluong = p.Soluong,
-
-
-                    }).ToList(),
-                }); ;
+                    Status = true,
+                    Data= result
+                };
             }
-
-            var totalProductCount = result.SelectMany(x => ((List<ProductDto>)x.products)).Count();
-
-            var totalPages = (int)Math.Ceiling((double)totalProductCount / pageSize);
-            var currentPage = Math.Max(1, Math.Min(pageIndex, totalPages));
-
-            var pagedResult = result
-                .Select(x => new
+            catch (Exception ex) {
+                return new ValueReturn
                 {
-                    totalProduct = x.products.Count,
-
-                    totalPage = (int)Math.Ceiling(((List<ProductDto>)x.products).Count() / (double)pageSize),
-                    categoryName = x.categoryName,
-                    products = ((List<ProductDto>)x.products)
-                        .Skip((currentPage - 1) * pageSize)
-                        .Take(pageSize)
-                });
-
-            return pagedResult;
+                    Status=false,
+                    Message= ex.Message
+                };
+            }
         }
+
 
         #region temp
         //public async Task<IEnumerable<Product>> GetProductsAsync(string search, string orderBy, int page, int pageSize )
@@ -199,6 +210,7 @@ namespace WebBanBalo.Repository
                 Description = p.Description,
                 Price = p.Price,
                 Soluong = p.Soluong,
+                Discount = p.Discount,
                 Stock = p.Stock,
                 CreatedAt = p.CreatedAt,
                 CategoryId = p.CategoryId,
@@ -271,6 +283,7 @@ namespace WebBanBalo.Repository
                 Soluong = productInput.SoLuong,
                 CategoryId = productInput.CategoryId,
                 Discount = productInput.Discount,
+                CreatedAt = DateTime.Now,
             };
 
             foreach (var imagePath in imagePaths)
@@ -447,18 +460,27 @@ namespace WebBanBalo.Repository
                         Status = true,
                         Data = await _dataContext.Product.Where(p => p.Id == id).Select(p => new
                         {
-                            Id=p.Id,
-                            Name= p.Name,
-                            Price= p.Price,
-                            Image = p.Images.Select(pc=>pc.FilePath).ToList(),
+                            Id = p.Id,
+                            Name = p.Name,
+                            Price = p.Price,
+                            Discount = p.Discount,
+                            PriceNow = p.Price - p.Discount,
+                            Status = p.Status,
+                            Image = p.Images.Select(pc => pc.FilePath).ToList(),
                             Description = p.Description,
-                            Reviews = p.Reviews.Select(re=>new
+                            SoLuong = p.Soluong,
+                            TotalProduct = p.TotalProduct,
+                            RatingPoint = p.Reviews.Average(re => re.Rating) != null ? p.Reviews.Average(re => re.Rating) : 0,
+                            TotalRating = p.Reviews.Count(),
+                            CreateAt= p.CreatedAt,
+                            CategoryId = p.CategoryId,
+                            Reviews = p.Reviews.Select(re => new
                             {
-                                Id=re.Id,
+                                Id = re.Id,
                                 Rating = re.Rating,
                                 DatePosted = re.DatePosted,
                                 Comment = re.Comment,
-                                UserName= re.User.UserName,
+                                UserName = re.User.UserName,
                             }).ToList()
 
                         }).FirstOrDefaultAsync()

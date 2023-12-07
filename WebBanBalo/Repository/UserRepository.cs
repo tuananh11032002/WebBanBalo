@@ -297,12 +297,22 @@ namespace WebBanBalo.Repository
                 }
                 else
                 {
-                    _dataContext.Users.Remove(users);
-                    await _dataContext.SaveChangesAsync();
-                    return new ValueReturn
+                    var sentMessages = await _dataContext.Message.Where(m => m.SenderUserId == userId).ToListAsync();
+                    _dataContext.Message.RemoveRange(sentMessages);
+                    
+                   if(await _dataContext.SaveChangesAsync()>0 || sentMessages.Count()==0)
+                   {
+                        _dataContext.Users.Remove(users);
+                        await _dataContext.SaveChangesAsync();
+                        return new ValueReturn
+                        {
+                            Status = true,
+                        };
+                    }
+                    else
                     {
-                        Status = true,
-                    };
+                        return new ValueReturn { Status = false, Message = "Có vấn đề không xóa được" };
+                    }
                 }
                
 
@@ -524,6 +534,24 @@ namespace WebBanBalo.Repository
             catch (Exception ex)
             {
                 return new ValueReturn { Status = false, Data = ex.Message };
+            }
+        }
+
+        public async Task<ValueReturn> ChangePassword(ChangePasswordModel model, int userId)
+        {
+            try
+            {
+                var user = await _dataContext.Users.Where(p=>p.Id== userId).FirstOrDefaultAsync();
+                if (model.Password!= model.RePassword)   return new ValueReturn { Status = false, Message = "Mật khẩu không trùng khớp kiểm tra lại" };
+                if (model.NewPassword == model.RePassword) { return new ValueReturn { Status = false, Message = "Mật khẩu mới và mật khẩu cữ phải khác nhau " }; };
+                user.Password = model.NewPassword;
+                await _dataContext.SaveChangesAsync();
+                return new ValueReturn { Status = true, Message = "Đổi thành công " };
+
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn { Status = false, Message = ex.Message };
             }
         }
     }

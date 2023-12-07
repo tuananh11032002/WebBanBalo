@@ -43,9 +43,26 @@ namespace WebBanBalo.Controllers
         [FromQuery] int pageSize = 10,
         [FromQuery] int pageIndex = 1)
         {
-            var result = await _productRepository.GetFilteredProducts(categoryId, search, orderBy, pageSize, pageIndex);
 
-            return Ok(result);
+            
+            try
+            {
+                
+                ValueReturn result = await _productRepository.GetFilteredProducts(categoryId, search, orderBy, pageSize, pageIndex);
+                if (result.Status == true)
+                {
+                    return Ok(result.Data);
+
+                }
+                else
+                {
+                    return BadRequest(result.Message);
+                }
+            }
+            catch (Exception ex) 
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
 
 

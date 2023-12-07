@@ -186,7 +186,9 @@ namespace WebBanBalo.Controllers
             try
             {
                 if (users == null) return BadRequest("Hãy nhập thông tin đầy đủ");
-                if (_userRepository.getUser(users.UserName)) return BadRequest("User da ton tai");
+                if (users.Password == null) return BadRequest("Hãy nhập thông tin đầy đủ");
+
+                if (_userRepository.getUser(users.UserName)) return BadRequest("User Đã Tồn Tại ");
                 var user = new Users()
                 {
                     UserName = users.UserName,
@@ -208,7 +210,13 @@ namespace WebBanBalo.Controllers
 
 
 
+        /// <summary>
+        /// Add user use by admin
+        /// </summary>
+        /// <param name="userInput"></param>
+        /// <returns></returns>
         [HttpPost("add-user-for-admin")]
+
         public async Task<IActionResult> Add_User_Admin(UserCreateInputAdmin userInput)
         {
             try
@@ -417,6 +425,28 @@ namespace WebBanBalo.Controllers
 
             }
             catch (Exception ex)
+            {
+                return StatusCode(500, ex);
+            }
+        }
+        [HttpPut("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordModel model)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst("Id").Value);
+
+                ValueReturn result = await _userRepository.ChangePassword(model, userId);
+                if (result.Status == true)
+                {
+                    return Ok();
+                }
+                else
+                {
+                    return BadRequest(result.Message);
+                }
+            }catch (Exception ex)
             {
                 return StatusCode(500, ex);
             }

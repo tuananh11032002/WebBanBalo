@@ -16,7 +16,6 @@ namespace WebBanBalo.Model
         public string? Description { get; set; } = string.Empty;
         public float Price { get; set; }
         public float Discount { get; set; }
-        public float FeeShip { get; set; } = 0;
         
         public StatusProduct Status { get; set; }
         public int Soluong { get; set; }

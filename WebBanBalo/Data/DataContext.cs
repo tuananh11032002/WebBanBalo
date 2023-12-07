@@ -17,14 +17,24 @@ namespace WebBanBalo.Data
         public DbSet<Product>  Product { get; set; }
         public DbSet<OrderStatusUpdate> OrderStatusUpdates { get; set; }
         public DbSet<Users> Users { get; set; }
+        public DbSet<Payment> Payment { get; set; }
         public DbSet<ProductImage> ProductImage { get; set; }
 
         public DbSet<Review> Review { get; set; }
 
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            base.OnConfiguring(optionsBuilder);
+            
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            
-            
+
+            modelBuilder.Entity<Payment>()
+                       .HasOne(p => p.Order)  
+                       .WithMany(o => o.Payment)  
+                       .HasForeignKey(p => p.OrderId);
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Categories)
                 .WithMany(p => p.Products)

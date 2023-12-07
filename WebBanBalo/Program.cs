@@ -15,6 +15,8 @@ using Microsoft.Extensions.Options;
 using System.Reflection;
 using System.Text.Json.Serialization;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -25,7 +27,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: MyAllowSpecificOrigins,
                       policy =>
                       {
-                          policy.WithOrigins("http://localhost:3000", "http://192.168.2.104:3000").AllowAnyHeader()
+                          policy.WithOrigins("http://localhost:3000").AllowAnyHeader()
                                                   .AllowAnyMethod().AllowCredentials();
                       });
 });
@@ -80,12 +82,15 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+
 builder.Services.Configure<AppSetting>(builder.Configuration.GetSection("AppSettings"));
 builder.Services.AddSwaggerGen(options =>
 {
     options.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
     
 });
+builder.Services.Configure<VnPayConfig>(builder.Configuration.GetSection("VnPayConfig"));
 
 builder.Services.AddDbContext<DataContext>(options=>
 {
@@ -98,6 +103,7 @@ builder.Services.AddLogging(builder =>
            .AddConsole(); 
 });
 
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddSignalR();
 var configuration = new ConfigurationBuilder()
@@ -143,6 +149,7 @@ var app = builder.Build();
 app.UseCors(MyAllowSpecificOrigins);
 
 app.UseStaticFiles();
+Utils.SetHttpContextAccessor(app.Services.GetService<IHttpContextAccessor>());
 
 
 app.UseSwagger();

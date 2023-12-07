@@ -23,31 +23,51 @@ namespace WebBanBalo.Repository
             try
             {
                 
-                Review review = new Review()
+               var orderItem= await _dataContext.OrderItem.FirstOrDefaultAsync(p=>p.ProductId==reviewInput.ProductId && p.OrderId==reviewInput.OrderId);
+                if(orderItem == null)
                 {
-                    DatePosted = DateTime.Now,
-                    Comment = reviewInput.Comment,
-                    UserId = reviewInput.UserId,
-                    Rating = reviewInput.Rating,
-                    ProductId= reviewInput.ProductId,
-                    UserName= reviewInput.UserId.ToString(),
-                };
-                await _dataContext.Review.AddAsync(review);
-                if(await _dataContext.SaveChangesAsync() > 0)
-                {
-                    var orderItem = await _dataContext.OrderItem.Where(p => p.ProductId == reviewInput.ProductId && p.OrderId == reviewInput.OrderId).FirstOrDefaultAsync();
-                    orderItem.IsReview = true;
-                    _dataContext.OrderItem.Update(orderItem);
-                    await _dataContext.SaveChangesAsync();
+                    return new ValueReturn
+                    {
+                        Status = false,
+                        Message = "Sản phẩm không tồn tại trong đơn hàng naỳ ",
+                    };
                 }
-
-                return new ValueReturn
+                else
                 {
-                    Status = true,
-                    Message = "Tạo Review thành công "
+                    if (orderItem.IsReview == true)
+                    {
+                        return new ValueReturn
+                        {
+                            Status = false,
+                            Message = "Đơn hàng này đã đánh giá rồi"
+                        };
+                    }
+                    else
+                    {
+                        Review review = new Review()
+                        {
+                            DatePosted = DateTime.Now,
+                            Comment = reviewInput.Comment,
+                            UserId = reviewInput.UserId,
+                            Rating = reviewInput.Rating,
+                            ProductId = reviewInput.ProductId,
+                        };
+                        await _dataContext.Review.AddAsync(review);
+                        if (await _dataContext.SaveChangesAsync() > 0)
+                        {
+                            orderItem.IsReview = true;
+                            _dataContext.OrderItem.Update(orderItem);
+                            await _dataContext.SaveChangesAsync();
+                        }
 
-                };
+                        return new ValueReturn
+                        {
+                            Status = true,
+                            Message = "Tạo Review thành công "
 
+                        };
+                    }
+                }
             }catch (Exception ex)
             {
                 return new ValueReturn

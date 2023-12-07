@@ -18,5 +18,6 @@ namespace WebBanBalo.Interface
         Task<ValueReturn> getCustomerWithCriterial(string? search, int pageIndex, int pageSize);
         Task<ValueReturn> getCustomerWithId(int id);
         Task<ValueReturn> Add_User_Admin(UserCreateInputAdmin userInput);
+        Task<ValueReturn> ChangePassword(ChangePasswordModel model, int userId);
     }
 }

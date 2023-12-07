@@ -8,8 +8,8 @@
         public string Content { get; set; }
         public DateTime Timestamp { get; set; }
 
-        public Users ReceiveUser { get; set; }
-        public Users SenderUser { get; set; }
+        public Users? ReceiveUser { get; set; }
+        public Users? SenderUser { get; set; }
 
     }
 }

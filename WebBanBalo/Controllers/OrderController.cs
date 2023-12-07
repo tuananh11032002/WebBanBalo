@@ -28,6 +28,20 @@ namespace WebBanBalo.Controllers
             _productRepository = productRepository;
             _userRepository = userRepository;
         }
+        [HttpGet("get-sale-revenue")]
+        public async Task<IActionResult> getSalesRevenue()
+        {
+            try
+            {
+                ValueReturn result = await _orderRepository.getSalesRevenue();
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
         [HttpPost("AddOrder")]
         [Authorize]
         public IActionResult PostOrder([FromBody] OrderDto orderDto )
@@ -36,8 +50,16 @@ namespace WebBanBalo.Controllers
             orderDto.UserId = Int32.Parse(userIdClaim);
             return Ok(_orderRepository.AddOrder(_mapper.Map<Order>(orderDto)));
         }
+
+        /// <summary>
+        /// Get All order for admin
+        /// </summary>
+        /// <param name="pageIndex"></param>
+        /// <param name="pageSize"></param>
+        /// <param name="search"></param>
+        /// <returns></returns>
         [HttpGet()]
-        //[Authorize(Roles ="admin")]
+        [Authorize(Roles ="Admin")]
         public async Task<IActionResult> GetOrder([FromQuery] int pageIndex, [FromQuery] int pageSize, [FromQuery] string? search)
         {
 
@@ -68,27 +90,34 @@ namespace WebBanBalo.Controllers
             try
             {
                 var userIdClaim = User.FindFirst("Id").Value;
-                int userId = Int32.Parse(userIdClaim);
-                var user = await _userRepository.getUser(userId);
-
-                if (user == null)
+                if (userIdClaim == null)
                 {
-                    return NotFound("User không tồn tại");
+                    return Unauthorized();
                 }
-
-                var order = await _orderRepository.FindOrder(userIdClaim);
-                if(order == null)
+                else
                 {
-                    var newOrder = new Order
+                    int userId = Int32.Parse(userIdClaim);
+                    var user = await _userRepository.getUser(userId);
+
+                    if (user == null)
                     {
-                        UserId = int.Parse(userIdClaim)
+                        return NotFound("User không tồn tại");
+                    }
 
-                    };
-                    await _orderRepository.AddOrder(newOrder);
-                    order = await _orderRepository.FindOrder(userIdClaim);
+                    var order = await _orderRepository.FindOrder(userIdClaim);
+                    if (order == null)
+                    {
+                        var newOrder = new Order
+                        {
+                            UserId = int.Parse(userIdClaim)
 
+                        };
+                        await _orderRepository.AddOrder(newOrder);
+                        order = await _orderRepository.FindOrder(userIdClaim);
+
+                    }
+                    return Ok(order);
                 }
-                return Ok(order);
             }
             catch (Exception ex)
             {
@@ -96,51 +125,34 @@ namespace WebBanBalo.Controllers
             }
         }
 
-        [HttpPost("Product/{productid}")]
+        [HttpPost("Product")]
         [Authorize]
-        public async Task<IActionResult> AddProductIntoOrder( int productid, [FromBody] OrderItemInputDto orderItemDto)
+        public async Task<IActionResult> AddProductIntoOrder(  [FromBody] OrderItemInputDto orderItemDto)
         {
-            var userIdClaim = User.FindFirst("Id").Value;
-            var orderLast = await _orderRepository.FindOrderWithUserId(userIdClaim);
-            if (orderLast!=null && orderLast.Done==false)
+            try
             {
-                var product = await _productRepository.GetProductByIdAsync(productid);
-                if (product == null) return NotFound("Product dont exist");
+                var userIdClaim = User.FindFirst("Id").Value;
+                if(userIdClaim == null)
+                {
+                    return Unauthorized();
+                }
+
+                ValueReturn result = await _orderRepository.AddProduct(userIdClaim, orderItemDto);
+                if (result.Status == true)
+                {
+                    return Ok();
+
+                }
                 else
                 {
-                    OrderItem orderItem = new OrderItem
-                    {
-                        Product = product,
-                        Order = orderLast,
-                        Price = orderItemDto.Price,
-                        Quantity = orderItemDto.Quantity,
-                    };
-                    ValueReturn result = _orderRepository.AddProduct(orderItem);
-                    if (result.Status== true)
-                    {
-                        return Ok(result.Message);
-                    }
-                    else
-                    {
-                        return BadRequest(result.Message);
-                    }
+                    return BadRequest(result.Message);
                 }
             }
-            else
+            catch (Exception ex)
             {
-                var user = await _userRepository.getUser(Int32.Parse(userIdClaim));
-
-
-
-                if (user == null) return NotFound("User does not exist");
-                Order order = new Order
-                {
-                    UserId = Int32.Parse(userIdClaim)
-                };
-                _orderRepository.AddOrder(order);
-
-                return Ok(AddProductIntoOrder(productid, orderItemDto));
+                return StatusCode(500, ex.Message);
             }
+          
 
         }
 
@@ -153,13 +165,13 @@ namespace WebBanBalo.Controllers
         /// <returns></returns>
         [HttpGet("Product/Done")]
         [Authorize]
-        public async Task<IActionResult> GetProductOrderDone([FromQuery] int pageSize=3, [FromQuery]  int pageIndex=1)
+        public async Task<IActionResult> GetProductOrderDone([FromQuery] string? status,[FromQuery] int pageSize=3, [FromQuery]  int pageIndex=1)
         {
             try
             {
                 int  userId = int.Parse(User.FindFirstValue("id"));
                 if (userId == null) return StatusCode(500, "Lỗi do server hoặc do token ");
-                ValueReturn result = await _orderRepository.getOrderDoneWithUserId(userId, pageIndex, pageSize);
+                ValueReturn result = await _orderRepository.getOrderDoneWithUserId(userId, status,pageIndex, pageSize);
                 if(result.Status== true)
                 {
                     return Ok(result.Data);
@@ -235,6 +247,7 @@ namespace WebBanBalo.Controllers
         /// <param name="orderId"></param>
         /// <returns></returns>
         [HttpDelete("{orderId}")]
+        [Authorize]
         public async Task<IActionResult> DeleteWithOrderId(int orderId)
         {
             try
@@ -285,6 +298,22 @@ namespace WebBanBalo.Controllers
             }
         }
 
+        [HttpPut("cancel-order/{orderId}")]
+        //[Authorize]
+        public async Task<IActionResult> HuyDon(int orderId)
+        {
+
+            try
+            {
+                var result = await _orderRepository.CancelOrder(orderId);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
 
         [HttpPut("{orderId}")]
         public async Task<IActionResult> UpdateStatusOrder(int orderId)
@@ -306,6 +335,29 @@ namespace WebBanBalo.Controllers
                 return StatusCode(500, ex.Message);
             }
         }
+
+        [HttpGet("coupon")]
+        public async Task<IActionResult> getCoupon([FromQuery] string coupon)
+        {
+            try
+            {
+                ValueReturn result = _orderRepository.GetCoupon(coupon);
+                if(result.Status == true)
+                {
+                    return Ok(result.Data);
+
+                }
+                else
+                {
+                    return BadRequest(result.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
     }
 
 }

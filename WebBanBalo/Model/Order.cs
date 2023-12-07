@@ -6,7 +6,7 @@ namespace WebBanBalo.Model
 
     public enum OrderStatus {
 
-        NotPlaced,
+        Cancelled,
         ReadytoPickup,
         Dispatched,
         OutforDelivery,
@@ -23,6 +23,7 @@ namespace WebBanBalo.Model
     {
         public int Id { get; set; }
         public int UserId { get; set; }
+        public int PaymentId { get; set; }
         public float TotalAmount { get; set; }
         public float FeeShip { set; get; }
         public float Discount { set; get; }
@@ -46,7 +47,7 @@ namespace WebBanBalo.Model
 
         public List<OrderStatusUpdate> OrderStatusUpdates { get; set; }
 
-
+        public ICollection<Payment> Payment { get; set; }
         public PaymentMethod PaymentMethod { get; set; }
 
         public ICollection<OrderItem> OrderItems { get; set; }

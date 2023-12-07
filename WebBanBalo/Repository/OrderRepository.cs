@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using AutoMapper.Configuration.Annotations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.IdentityModel.Tokens;
@@ -16,7 +17,13 @@ namespace WebBanBalo.Repository
     {
         private readonly DataContext _dataContext;
         private readonly IMapper _mapper;
-
+        private readonly IDictionary<string, int> _coupons = new Dictionary<string, int>
+        {
+            {"SAMPLECODE1", 15000},
+            {"SAMPLECODE2", 20000},
+            {"code1", 10000 },
+          
+        };
         public OrderRepository(DataContext dataContext,IMapper mapper)
         {
             _dataContext = dataContext;
@@ -50,7 +57,7 @@ namespace WebBanBalo.Repository
         {
             try
             {
-                var order = await _dataContext.Order.FirstOrDefaultAsync(p => p.UserId.ToString() == userId && p.Done == false);
+                var order = await _dataContext.Order.Include(p=>p.OrderItems).ThenInclude(p=>p.Product).FirstOrDefaultAsync(p => p.UserId.ToString() == userId && p.Done == false);
                 return order;
             }
             catch
@@ -62,6 +69,7 @@ namespace WebBanBalo.Repository
 
         public async Task< object > FindOrder(string userId)
         {
+           
 
             var order = await _dataContext.Order
                 .Where(p => p.UserId == Int32.Parse(userId) && p.Done == false).Select(p => new
@@ -76,7 +84,10 @@ namespace WebBanBalo.Repository
                         ProductHas = or.Product.Soluong,
                         Price = or.Product.Price,
                         Quantity = or.Quantity,
-                        Name = or.Product.Name
+                        Name = or.Product.Name,
+                        Discount = or.Product.Discount,
+                        PriceNow = or.Product.Price - or.Product.Discount,
+
                     }).ToList(),
                     TotalProduct = p.OrderItems.Count,
                     Done = p.Done,
@@ -140,60 +151,71 @@ namespace WebBanBalo.Repository
             }
         }
 
-        public ValueReturn AddProduct(OrderItem orderItem)
+        public async  Task<ValueReturn> AddProduct(string userId, OrderItemInputDto orderItem)
         {
-            var productCheck = _dataContext.Product.Where(p => p.Soluong >= orderItem.Quantity && p.Id == orderItem.Product.Id).FirstOrDefault();
-            
-            if (productCheck != null)
+
+            try
             {
-            //Is Exist
-            var check = _dataContext.OrderItem.Where(p => p.ProductId == orderItem.Product.Id && p.OrderId == orderItem.Order.Id).FirstOrDefault();
-            var order = _dataContext.Order.Where(p => p.Id == orderItem.Order.Id).FirstOrDefault();
-            //            var orderProductList = _dataContext.OrderItem.Where(p => p.OrderId == orderItem.Order.Id).ToList();
-
-                if (check != null)
+                var order = await FindOrderWithUserId(userId);
+                if (order != null)
                 {
-
-                    check.Quantity = orderItem.Quantity;
-                    float totalPrice = 0;
-                    foreach (var t in order.OrderItems)
+                    var isEnoughProduct = await _dataContext.Product.AnyAsync(p => p.Soluong >= orderItem.Quantity && p.Id == orderItem.ProdductId);
+                    if (isEnoughProduct)
                     {
-                        totalPrice += t.Price * t.Quantity;
+                        var isExistProduct = order.OrderItems.Any(p => p.ProductId == orderItem.ProdductId);
+                        if (isExistProduct)
+                        {
+                            var orderItemUpdate = order.OrderItems.FirstOrDefault(p => p.ProductId == orderItem.ProdductId);
+                            orderItemUpdate.Price = orderItemUpdate.Product.Price;
+                            orderItemUpdate.Quantity = orderItem.Quantity;
+                            order.TotalAmount = order.OrderItems.Select(p => p.Product.Price * p.Quantity).Sum();
+                            await _dataContext.SaveChangesAsync();
+                        }
+                        else
+                        {
+                            OrderItem orderItemTemp = new OrderItem
+                            {
+                                ProductId = orderItem.ProdductId,
+                                OrderId = order.Id,
+                                Quantity = orderItem.Quantity,
+                                Price = order.OrderItems.Select(p => p.Product).Where(p => p.Id == orderItem.ProdductId).Select(p => p.Price).FirstOrDefault(),
+                                Discount = order.OrderItems.Select(p => p.Product).Where(p => p.Id == orderItem.ProdductId).Select(p => p.Discount).FirstOrDefault(),
+
+                            };
+                            await _dataContext.OrderItem.AddAsync(orderItemTemp);
+                            await _dataContext.SaveChangesAsync();
+                            var orderTemp = await FindOrderWithUserId(userId);
+
+                            orderTemp.TotalAmount = order.OrderItems.Select(p => p.Product.Price * p.Quantity).Sum();
+                            await _dataContext.SaveChangesAsync();
+                        }
+
+                        return new ValueReturn
+                        {
+                            Status = true,
+                            Message = "Cập nhật thành công",
+                        };
                     }
-                    order.TotalAmount = totalPrice;
+                    else
+                    {
+                        return new ValueReturn { Status = false, Message = "Số lượng sản phẩm không đủ với yêu cầu của bạn" };
+
+                    }
 
                 }
                 else
                 {
-                    _dataContext.Add(orderItem);
-                    _dataContext.SaveChanges();
-                    var orderItemTemp = _dataContext.OrderItem.Where(p => p.ProductId == orderItem.Product.Id && p.OrderId == orderItem.Order.Id).FirstOrDefault();
-                    var orderProductListTemp = _dataContext.OrderItem.Where(p => p.OrderId == orderItem.Order.Id).ToList();
-                    orderItemTemp.Quantity = orderItem.Quantity;
-                    float totalPrice = 0;
-                    foreach (var t in orderProductListTemp)
-                    {
-                        totalPrice += t.Price * t.Quantity;
-                    }
-                    order.TotalAmount = totalPrice;
-
+                    return new ValueReturn { Status = false, Message = "Không tìm được order chưa thanh toán" };
                 }
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn { Status = false, Message = ex.Message, };
+            }
 
-            }
-            else
-            {
-                return new ValueReturn()
-                {
-                    Status = false,
-                    Message = "Số lượng sản phẩm không đủ với yêu cầu của bạn"
-                };
-            }
-            Save();
-            return new ValueReturn()
-            {
-                Status = true,
-                Message = "Thêm thành công"
-            };
+
+
+          
         }
 
         public Order GetOrder(int id)
@@ -215,25 +237,38 @@ namespace WebBanBalo.Repository
             await _dataContext.SaveChangesAsync();
             var order = _dataContext.Order.Where(p => p.Id == orderItem.OrderId).FirstOrDefault();
 
-            var listProduct = await _dataContext.OrderItem.Where(p => p.OrderId == orderItem.OrderId).ToListAsync();
+            var listProduct = await _dataContext.OrderItem.Where(p => p.OrderId == orderItem.OrderId).Include(p=>p.Product).ToListAsync();
 
             float result = 0;
 
             foreach (var item in listProduct)
             {
-                result += item.Price*item.Quantity;
+                result += item.Product.Price*item.Quantity;
             }
             order.TotalAmount = result;
 
             
             return await SaveAsync();
         }
+        public int GetDiscount(string couponCode)
+        {
+            if (!couponCode.IsNullOrEmpty())
+            {
+                if (_coupons.ContainsKey(couponCode))
+                {
+                    return _coupons[couponCode];
+                }
+            }
+
+            return 0;
+        }
 
         public async Task<ValueReturn> ConfirmOrder(OrderUpdateModel order, int userId)
         {
             try
             {
-                var orderUpdate = _dataContext.Order.FirstOrDefault(p => p.Id == order.Id && p.UserId == userId && p.Done == false);
+
+                var orderUpdate = _dataContext.Order.Include(p=>p.OrderItems).ThenInclude(p=>p.Product).FirstOrDefault(p => p.Id == order.Id && p.UserId == userId && p.Done == false);
                 //check quantity is valid
                 var orderItem = await _dataContext.Order.Where(p => p.Id == order.Id).Select(px => new 
                 {
@@ -261,14 +296,27 @@ namespace WebBanBalo.Repository
                         };
                     }
                 }
+               
                 
                 if (orderUpdate != null)
                 {
-                    orderUpdate.Discount = order.Discount;
+                    if(order.PaymentMethod== PaymentMethod.Momo)
+                    {
+                        var isPaymentCompleted = await _dataContext.Payment.Where(p => p.OrderId == order.Id && p.vnp_ResponseCode == "00" && p.vnp_TransactionStatus == "00").AnyAsync();
+                        if(!isPaymentCompleted) {
+                            return new ValueReturn()
+                            {
+                                Status= false,
+                                Message = "Bạn chưa thanh toán, kiểm tra lại"
+                            };
+                        }
+
+                    }
+                    orderUpdate.Discount = GetDiscount(order.Coupon);
                     orderUpdate.FinishedAt = DateTime.Now;
                     orderUpdate.ShippingAddress = order.ShippingAddress;
                     orderUpdate.OrderNote = order.OrderNote;
-                    orderUpdate.FeeShip = order.FeeShip;
+                    orderUpdate.FeeShip = 30000;
                     orderUpdate.BillingAddress = order.BillingAddress;
                     orderUpdate.PaymentMethod = order.PaymentMethod;
                     orderUpdate.Done = true;
@@ -277,10 +325,20 @@ namespace WebBanBalo.Repository
                         {
                             Status = OrderStatus.ReadytoPickup,
                             UpdateTime=DateTime.Now
-                        }
-                        );
+                        } );
+                    
                     orderUpdate.CustomerPhone = order.CustomerPhone;
                     orderUpdate.CustomerName = order.CustomerName;
+                    orderUpdate.TotalAmount = 0;
+                    foreach (var item in orderUpdate.OrderItems)
+                    {
+                        item.Price = item.Product.Price;
+                        item.Discount = item.Product.Discount;
+                        orderUpdate.TotalAmount += (item.Product.Price - item.Product.Discount)*item.Quantity;
+
+
+                    }
+
                     _dataContext.Update(orderUpdate);
                     await _dataContext.SaveChangesAsync();
                     if (order.PaymentMethod == PaymentMethod.Momo)
@@ -355,17 +413,55 @@ namespace WebBanBalo.Repository
 
         }
 
-        public async Task<ValueReturn> getOrderDoneWithUserId(int userId, int pageIndex, int pageSize)
+        public async Task<ValueReturn> getOrderDoneWithUserId(int userId, string? status,int pageIndex, int pageSize)
         {
             try
             {
-                var result = _dataContext.Order.Where(p => p.UserId == userId && p.Done == true).Select(p => new
+                var query = _dataContext.Order.Include(p=>p.OrderStatusUpdates).AsQueryable();
+                if (!status.IsNullOrEmpty())
+                {
+
+                    if (Enum.TryParse(status, out OrderStatus statusOut))
+                    {
+                        if (statusOut == OrderStatus.Dispatched)
+                        {
+                            query = query.Where(p => p.OrderStatusUpdates
+                               .OrderByDescending(pc => pc.UpdateTime)
+                               .Select(pc => pc.Status)
+                               .FirstOrDefault() == statusOut || p.OrderStatusUpdates
+                               .OrderByDescending(pc => pc.UpdateTime)
+                               .Select(pc => pc.Status)
+                               .FirstOrDefault() == OrderStatus.OutforDelivery
+                           );
+                        }
+                        query = query.Where(p => p.OrderStatusUpdates
+                            .OrderByDescending(pc => pc.UpdateTime)
+                            .Select(pc => pc.Status)
+                            .FirstOrDefault() == statusOut);
+                    }
+                    if (Enum.TryParse(status, out PaymentStatus paymentStatusOut))
+                    {
+                        if (paymentStatusOut == PaymentStatus.Paid && paymentStatusOut!=PaymentStatus.Cancelled)
+                        {
+                            query = query.Where(p => p.PaymentStatus != paymentStatusOut && 
+                            p.OrderStatusUpdates.OrderByDescending(pc=>pc.UpdateTime).Select(pc=>pc.Status).FirstOrDefault() != OrderStatus.Delivered &&
+                            p.OrderStatusUpdates.OrderByDescending(pc => pc.UpdateTime).Select(pc => pc.Status).FirstOrDefault() != OrderStatus.Cancelled);
+                           
+                        }
+                    
+                    }
+
+                }
+                query = query.Where(p => p.UserId == userId && p.Done == true).OrderByDescending(p => p.CreatedAt);
+                var result =query.Select(p => new
                 {
                     OrderId = p.Id,
                     FeeShip = p.FeeShip,
                     Discount = p.Discount,
                     GrandTotal = p.GrandTotal,
                     TotalAmount = p.TotalAmount,
+                    ShippingAddress = p.ShippingAddress,
+                    PaymentMethod = p.PaymentMethod,
                     OrderStatus = p.OrderStatusUpdates.OrderByDescending(pc=>pc.UpdateTime).Select(pc=>pc.Status).FirstOrDefault(),
                     Product = p.OrderItems.Select(o => new
                     {
@@ -382,9 +478,9 @@ namespace WebBanBalo.Repository
 
                 var result2 = new
                 {
-                    totalPage = Math.Ceiling(_dataContext.Order.Where(p => p.UserId == userId && p.Done == true).Count() / (float)pageSize),
+                    totalPage = Math.Ceiling(query.Count() / (float)pageSize),
                     data = result,
-                    totalOrder = _dataContext.Order.Where(p => p.UserId == userId && p.Done == true).Count()
+                    totalOrder = query.Count()
                 };
 
                 return new ValueReturn { Status = true, Message = "Lấy thành công", Data=result2 };
@@ -535,6 +631,107 @@ namespace WebBanBalo.Repository
                         Message = "Không tìm thấy order"
                     };
                 }
+            }
+            catch (Exception ex)
+            {
+                return new ValueReturn { Status = false, Message = ex.Message };
+            }
+        }
+
+        public async Task<ValueReturn> CancelOrder(int orderId)
+        {
+            try
+            {
+                var order = await _dataContext.Order.Include(p=>p.OrderStatusUpdates).FirstOrDefaultAsync(p => p.Id == orderId);
+                if(order == null)
+                {
+                    return new ValueReturn { Status = false, Message = "đơn hàng sai mã" };
+                }
+                else if(order.OrderStatusUpdates.OrderByDescending(p=>p.UpdateTime).Select(p=>p.Status).FirstOrDefault() != OrderStatus.ReadytoPickup)
+                {
+                    return new ValueReturn { Status = false, Message = "Đơn hnagf đang giao" };
+
+                }
+
+                else
+                {
+                    order.PaymentStatus = PaymentStatus.Cancelled;
+                    var orderStatus = new OrderStatusUpdate
+                    {
+                        OrderId = order.Id,
+                        Status = OrderStatus.Cancelled,
+                        UpdateTime = DateTime.Now,
+
+                    };
+                    await _dataContext.OrderStatusUpdates.AddAsync(orderStatus);
+                    await _dataContext.SaveChangesAsync();
+                    return new ValueReturn { Status = true, Message = "Lưu thành công" };
+
+                }
+            } 
+            catch (Exception ex)
+            {
+                return new ValueReturn { Status = false, Message = ex.Message };
+            }
+        }
+
+        public ValueReturn GetCoupon(string coupon)
+        {
+            if (_coupons.ContainsKey(coupon))
+            {
+                return new ValueReturn { Data = GetDiscount(coupon), Status= true };
+
+            }
+            else
+            {
+                return new ValueReturn
+                {
+                    Status = false,
+                    Message = "Coupon sai"
+                };
+            }
+        }
+
+        public async Task<ValueReturn> getSalesRevenue()
+        {
+
+            try
+            {
+                var data = await _dataContext.Order.Where(p => p.OrderStatusUpdates.OrderByDescending(pc => pc.UpdateTime)
+                .FirstOrDefault().Status == OrderStatus.Delivered).ToListAsync();
+
+
+                return new ValueReturn
+                {
+                    Status = true,
+                    Data = new
+                    {
+                        InWebsite = new
+                        {
+                            TotalAmount = await _dataContext.Order.Where(p => p.OrderStatusUpdates.OrderByDescending(pc => pc.UpdateTime)
+                .               FirstOrDefault().Status == OrderStatus.Delivered).SumAsync(p => p.TotalAmount - p.Discount + 30000),
+                            TotalOrder = data.Count,
+                        }, 
+                        InStore= new
+                        {
+                            TotalAmount = 0,
+                            TotalOrder = 0
+                        },
+                        InDiscount = new
+                        {
+                            TotalAmount = 0,
+                            TotalOrder = 0
+                        },
+                        InAffiliate = new
+                        {
+                            TotalAmount = 0,
+                            TotalOrder = 0
+                        }
+
+
+                    }
+
+                };
             }
             catch (Exception ex)
             {

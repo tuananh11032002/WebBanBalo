@@ -108,9 +108,14 @@ namespace WebBanBalo.Repository
             return _dataContext.Category.ToList();
         }
 
-        public ICollection<CategoryDto> GetCategoriesForAdmin()
+        public ICollection<CategoryDto> GetCategoriesForAdmin(string? search)
         {
-            var catgory= _dataContext.Category.ToList();
+            var query = _dataContext.Category.AsQueryable();
+            if (!search.IsNullOrEmpty())
+            {
+                query = query.Where(p => p.Name.ToLower().Contains(search.ToLower()));
+            }
+            var catgory= query.ToList();
             var result =catgory.Select(p => new CategoryDto
             {
                 Name = p.Name,

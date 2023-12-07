@@ -8,7 +8,7 @@ namespace WebBanBalo.Interface
     public interface ICategoryRepository
     {
         ICollection<Category> GetCategories();
-        ICollection<CategoryDto> GetCategoriesForAdmin();
+        ICollection<CategoryDto> GetCategoriesForAdmin(string? search);
         Category GetCategory(int id);
         Category GetCategory(string name);
         Category GetCategoryTrimToUpper(CategoryDto CategoryCreate);

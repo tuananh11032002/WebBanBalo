@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebBanBalo.Data;
 
@@ -11,9 +12,11 @@ using WebBanBalo.Data;
 namespace WebBanBalo.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20231119041034_remove-some-property")]
+    partial class removesomeproperty
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -67,6 +70,7 @@ namespace WebBanBalo.Migrations
                         .HasColumnType("int");
 
                     b.Property<int?>("SenderUserId")
+                        .IsRequired()
                         .HasColumnType("int");
 
                     b.Property<DateTime>("Timestamp")
@@ -147,9 +151,6 @@ namespace WebBanBalo.Migrations
                     b.Property<string>("OrderNote")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("PaymentId")
-                        .HasColumnType("int");
-
                     b.Property<int>("PaymentMethod")
                         .HasColumnType("int");
 
@@ -224,63 +225,6 @@ namespace WebBanBalo.Migrations
                     b.HasIndex("OrderId");
 
                     b.ToTable("OrderStatusUpdates");
-                });
-
-            modelBuilder.Entity("WebBanBalo.Model.Payment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreateAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("vnp_Amount")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("vnp_BankCode")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("vnp_BankTranNo")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("vnp_CardType")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("vnp_OrderInfo")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("vnp_PayDate")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("vnp_ResponseCode")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("vnp_SecureHash")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("vnp_TmnCode")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("vnp_TransactionNo")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("vnp_TransactionStatus")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("vnp_TxnRef")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrderId");
-
-                    b.ToTable("Payment");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.Product", b =>
@@ -488,7 +432,8 @@ namespace WebBanBalo.Migrations
                     b.HasOne("WebBanBalo.Model.Users", "SenderUser")
                         .WithMany("SentMessages")
                         .HasForeignKey("SenderUserId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.Navigation("ReceiveUser");
 
@@ -540,17 +485,6 @@ namespace WebBanBalo.Migrations
                 {
                     b.HasOne("WebBanBalo.Model.Order", "Order")
                         .WithMany("OrderStatusUpdates")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Order");
-                });
-
-            modelBuilder.Entity("WebBanBalo.Model.Payment", b =>
-                {
-                    b.HasOne("WebBanBalo.Model.Order", "Order")
-                        .WithMany("Payment")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -619,8 +553,6 @@ namespace WebBanBalo.Migrations
                     b.Navigation("OrderItems");
 
                     b.Navigation("OrderStatusUpdates");
-
-                    b.Navigation("Payment");
                 });
 
             modelBuilder.Entity("WebBanBalo.Model.Product", b =>
